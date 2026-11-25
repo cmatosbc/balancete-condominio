@@ -24,7 +24,13 @@ Condomínio21 / Brancalion).
   (`ADMIN_PASSWORD`/`MORADOR_PASSWORD` no env), `/admin` + `POST /upload`
   só para admin, `SECRET_KEY` persistida em `DATA_DIR/.secret_key`.
   Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
-  `ocorrencias` no SQLite → `/admin/ocorrencias` (só admin lista).
+  `ocorrencias` → listadas no `/admin`; admin alterna `resolvida` via
+  `POST /admin/ocorrencia/<id>/resolver`.
+  Votações: admin publica em `/admin` (`POST /admin/proposta`,
+  `POST /admin/proposta/<id>/alternar` abre/encerra) → tabela `propostas`;
+  moradores votam em `/propostas` → tabela `votos`, 1 voto por unidade
+  (UNIQUE proposta+unidade, votar de novo muda o voto; votos em
+  propostas encerradas são rejeitados).
 - `Dockerfile` / `entrypoint.sh` / `docker-compose.yml` — imagem
   python+poppler+gunicorn; volume `/data`; PDFs de `pdfs/` semeiam o banco.
 - `data/` — artefatos de runtime do container (gitignored).

@@ -248,6 +248,37 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
  .oc-date{color:#718098;font-size:10.5px}
  .oc-meta{color:#a5b2c6;font-size:11.5px;margin-bottom:4px}
  .oc-txt{font-size:12.5px;line-height:1.5;color:#dce5f2;overflow-wrap:anywhere}
+ .oc-right{display:flex;align-items:center;gap:7px}
+ .oc-btn{border:1px solid rgba(85,213,208,.3);background:rgba(85,213,208,.07);color:var(--cyan);
+  border-radius:7px;font-size:10.5px;font-weight:700;padding:4px 9px;cursor:pointer;transition:.15s;white-space:nowrap}
+ .oc-btn:hover{background:rgba(85,213,208,.18)}
+ .oc.done{opacity:.48}
+ .oc.done .oc-txt{text-decoration:line-through}
+ .oc.done .oc-cat{background:rgba(52,211,153,.12);color:#8be2c5}
+ .oc.done .oc-btn{border-color:rgba(148,163,184,.3);color:var(--muted);background:rgba(148,163,184,.06)}
+ .prop-grid{display:grid;grid-template-columns:minmax(280px,.7fr) minmax(0,1.3fr);gap:16px;align-items:start}
+ .prop-form input[type=text],.prop-form textarea{width:100%;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--border);background:rgba(4,10,20,.55);color:var(--text);
+  font-family:inherit;font-size:13px;margin-bottom:10px;outline:none;resize:vertical}
+ .prop-form input:focus,.prop-form textarea:focus{border-color:var(--cyan)}
+ .prop-form button{width:100%;padding:11px;border:none;border-radius:10px;font-weight:700;
+  font-size:13px;cursor:pointer;color:#07131a;background:linear-gradient(135deg,#83e5d4,#50c6c6);transition:.15s}
+ .prop-form button:hover{filter:brightness(1.08)}
+ .prop-list{display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding-right:3px}
+ .prop{padding:13px 14px;border:1px solid rgba(148,163,184,.1);border-radius:13px;background:rgba(4,10,20,.35)}
+ .prop-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+ .pstate{font-size:9.5px;font-weight:700;padding:4px 8px;border-radius:6px;letter-spacing:.7px;text-transform:uppercase}
+ .pstate.open{color:#8be2c5;background:rgba(85,213,208,.12);border:1px solid rgba(85,213,208,.25)}
+ .pstate.closed{color:#a5b2c6;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.18)}
+ .ptit{font-family:'Space Grotesk';font-size:14.5px;margin:0 0 4px}
+ .pdesc{color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+ .vbar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:rgba(148,163,184,.12);margin:11px 0 6px}
+ .vbar .f{background:#34d399}.vbar .c{background:#fb7185}.vbar .f,.vbar .c{transition:width .4s}
+ .vnums{display:flex;justify-content:space-between;font-size:11px;color:#a5b2c6}
+ .vnums .fv{color:#34d399;font-weight:700}.vnums .ct{color:#fb7185;font-weight:700}
+ .pbtn{margin-top:10px;padding:6px 11px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
+  border:1px solid rgba(148,163,184,.3);background:transparent;color:var(--muted);transition:.15s}
+ .pbtn:hover{color:var(--text);border-color:rgba(148,163,184,.55)}
  .empty{color:var(--muted);text-align:center;padding:32px 14px;font-size:13px}
  .section{margin-top:16px}
  .section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:13px}
@@ -272,7 +303,8 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.55);z-index:99;max-width:90vw}
  #toast.show{transform:translate(-50%,0);opacity:1}
  #toast.bad{border-color:rgba(255,129,146,.5)}
- @media(max-width:850px){.grid{grid-template-columns:1fr}.oclist{max-height:300px}}
+ @media(max-width:850px){.grid{grid-template-columns:1fr}.oclist{max-height:300px}
+ .prop-grid{grid-template-columns:1fr}.prop-list{max-height:400px}}
  @media(max-width:650px){
   body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
   .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
@@ -290,7 +322,8 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   </div>
   <div class="links">
    <a class="home" href="/">Painel</a><a href="/historico.html">Histórico</a>
-   <a href="/ocorrencia">Nova ocorrência</a><a class="exit" href="/logout">Sair</a>
+   <a href="/ocorrencia">Nova ocorrência</a><a href="/propostas">Votações</a>
+   <a class="exit" href="/logout">Sair</a>
   </div>
  </div>
  <section class="intro">
@@ -324,6 +357,19 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   </div>
  </div>
  <section class="section">
+  <div class="section-title"><div><h3>Propostas & votações</h3>
+   <p>Publique ideias e obras para os moradores votarem — um voto por unidade.</p></div>
+   <span class="cnt" id="propN"></span></div>
+  <div class="prop-grid">
+   <form class="card prop-form" id="propForm">
+    <input type="text" id="propTitulo" placeholder="Título — ex.: Pintura da fachada" required maxlength="120">
+    <textarea id="propDesc" rows="5" placeholder="Detalhes: custo estimado, prazo, benefícios…"></textarea>
+    <button type="submit">Publicar para votação</button>
+   </form>
+   <div class="prop-list" id="propList"></div>
+  </div>
+ </section>
+ <section class="section">
   <div class="section-title"><div><h3>Balancetes importados</h3>
    <p>Histórico de arquivos que formam a base atual do dashboard.</p></div>
    <span class="cnt" id="monthN"></span></div>
@@ -356,11 +402,12 @@ async function resumo() {
    <div class="kpi"><div class="l">Meses registrados</div><div class="v">${r.meses.length}</div></div>
    <div class="kpi"><div class="l">Último balancete</div><div class="v">${esc(ult.label || '—')}</div></div>
    <div class="kpi"><div class="l">Água · último mês</div><div class="v">${ult.agua != null ? BRL.format(ult.agua) : '—'}</div></div>
-   <div class="kpi"><div class="l">Ocorrências registradas</div><div class="v">${r.ocorrencias.length}</div></div>`;
+   <div class="kpi"><div class="l">Ocorrências abertas</div><div class="v">${r.ocorrencias.filter(o => !o.resolvida).length}</div></div>`;
   allOccurrences = r.ocorrencias;
   $('ocN').textContent = `${r.ocorrencias.length} ${r.ocorrencias.length === 1 ? 'registro' : 'registros'}`;
   $('monthN').textContent = `${r.meses.length} meses`;
   renderOccurrences();
+  renderProps(r.propostas);
   $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
    <td><span class="month-tag ${i === 0 ? 'latest' : ''}"><i></i>${esc(m.label)}</span></td>
    <td>${BRL.format(m.rec)}</td><td>${BRL.format(m.desp)}</td>
@@ -373,14 +420,63 @@ function renderOccurrences() {
     [o.categoria, o.unidade, o.nome, o.texto].join(' ').toLocaleLowerCase('pt-BR').includes(q)
   ).slice(0, 12);
   $('ocList').innerHTML = items.length
-    ? items.map(o => `<article class="oc"><div class="oc-top">
-       <span class="oc-cat">${esc(o.categoria || 'Outro')}</span><time class="oc-date">${esc(o.criado)}</time></div>
+    ? items.map(o => `<article class="oc ${o.resolvida ? 'done' : ''}"><div class="oc-top">
+       <span class="oc-cat">${esc(o.categoria || 'Outro')}</span>
+       <div class="oc-right"><time class="oc-date">${esc(o.criado)}</time>
+        <button class="oc-btn" data-oc="${o.id}" title="${o.resolvida ? 'Reabrir' : 'Marcar como resolvida'}">${o.resolvida ? '↩ reabrir' : '✓ resolver'}</button></div></div>
        <div class="oc-meta">${esc(o.unidade || 'Sem unidade')} · ${esc(o.nome || 'Anônimo')}</div>
        <div class="oc-txt">${esc(o.texto)}</div></article>`).join('')
     : `<div class="empty">${q ? 'Nenhuma ocorrência corresponde à busca.' : 'Tudo em dia — nenhuma ocorrência registrada.'}</div>`;
 }
+
+function renderProps(props) {
+  $('propN').textContent = `${props.length} ${props.length === 1 ? 'proposta' : 'propostas'}`;
+  $('propList').innerHTML = props.length ? props.map(p => {
+    const tot = p.favor + p.contra;
+    const pf = tot ? p.favor * 100 / tot : 0;
+    return `<article class="prop">
+     <div class="prop-top"><span class="pstate ${p.aberta ? 'open' : 'closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
+      <time class="oc-date">${esc(p.criado)}</time></div>
+     <h4 class="ptit">${esc(p.titulo)}</h4>
+     ${p.descricao ? `<p class="pdesc">${esc(p.descricao)}</p>` : ''}
+     <div class="vbar"><div class="f" style="width:${pf}%"></div><div class="c" style="width:${100 - pf}%"></div></div>
+     <div class="vnums"><span class="fv">${p.favor} a favor</span><span>${tot} ${tot === 1 ? 'voto' : 'votos'}</span><span class="ct">${p.contra} contra</span></div>
+     <button class="pbtn" data-prop="${p.id}">${p.aberta ? 'Encerrar votação' : 'Reabrir votação'}</button>
+    </article>`;
+  }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
+}
 resumo().catch(e => toast(e.message, true));
 $('ocSearch').addEventListener('input', renderOccurrences);
+$('ocList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-oc]');
+  if (!b) return;
+  try {
+    const r = await fetch(`/admin/ocorrencia/${b.dataset.oc}/resolver`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    await resumo();
+  } catch { toast('Falha ao atualizar a ocorrência.', true); }
+});
+$('propForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('titulo', $('propTitulo').value.trim());
+  fd.append('descricao', $('propDesc').value.trim());
+  try {
+    const r = await fetch('/admin/proposta', { method: 'POST', body: fd });
+    const j = await r.json();
+    toast(j.msg || 'Erro ao publicar.', !r.ok || !j.ok);
+    if (r.ok && j.ok) { $('propForm').reset(); await resumo(); }
+  } catch { toast('Falha de conexão.', true); }
+});
+$('propList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-prop]');
+  if (!b) return;
+  try {
+    const r = await fetch(`/admin/proposta/${b.dataset.prop}/alternar`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    await resumo();
+  } catch { toast('Falha ao atualizar a proposta.', true); }
+});
 
 const drop = $('drop'), fileInp = $('fileInp'), st = $('upStatus');
 drop.addEventListener('click', () => fileInp.click());
@@ -428,13 +524,18 @@ def api_resumo():
         'SELECT ano_mes, mes_label, receitas, despesas, agua '
         'FROM meses ORDER BY ano_mes').fetchall()
     ocs = odb().execute(
-        'SELECT criado_em, unidade, nome, categoria, texto '
+        'SELECT id, criado_em, unidade, nome, categoria, texto, resolvida '
         'FROM ocorrencias ORDER BY id DESC LIMIT 60').fetchall()
+    props = propostas_rows(odb())
     return {
         'meses': [{'am': a, 'label': l, 'rec': r, 'desp': d, 'agua': g}
                   for a, l, r, d, g in meses],
-        'ocorrencias': [{'criado': c, 'unidade': u, 'nome': n,
-                         'categoria': cat, 'texto': t} for c, u, n, cat, t in ocs]}
+        'ocorrencias': [{'id': i, 'criado': c, 'unidade': u, 'nome': n,
+                         'categoria': cat, 'texto': t, 'resolvida': bool(r)}
+                        for i, c, u, n, cat, t, r in ocs],
+        'propostas': [{'id': i, 'criado': c, 'titulo': t, 'descricao': d,
+                       'aberta': bool(ab), 'favor': f, 'contra': co}
+                      for i, c, t, d, ab, f, co in props]}
 
 
 @app.post('/upload')
@@ -480,7 +581,29 @@ def odb():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         criado_em TEXT DEFAULT (datetime('now','localtime')),
         unidade TEXT, nome TEXT, categoria TEXT, texto TEXT NOT NULL)""")
+    cols = {r[1] for r in conn.execute('PRAGMA table_info(ocorrencias)')}
+    if 'resolvida' not in cols:
+        conn.execute('ALTER TABLE ocorrencias ADD COLUMN resolvida INTEGER DEFAULT 0')
+    conn.execute("""CREATE TABLE IF NOT EXISTS propostas(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        criado_em TEXT DEFAULT (datetime('now','localtime')),
+        titulo TEXT NOT NULL, descricao TEXT, aberta INTEGER DEFAULT 1)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS votos(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        proposta_id INTEGER NOT NULL, unidade TEXT NOT NULL,
+        voto TEXT NOT NULL,
+        criado_em TEXT DEFAULT (datetime('now','localtime')),
+        UNIQUE(proposta_id, unidade))""")
     return conn
+
+
+def propostas_rows(conn):
+    return conn.execute(
+        """SELECT p.id, p.criado_em, p.titulo, p.descricao, p.aberta,
+           COALESCE(SUM(CASE WHEN v.voto='favor' THEN 1 END),0),
+           COALESCE(SUM(CASE WHEN v.voto='contra' THEN 1 END),0)
+           FROM propostas p LEFT JOIN votos v ON v.proposta_id = p.id
+           GROUP BY p.id ORDER BY p.aberta DESC, p.id DESC""").fetchall()
 
 
 @app.route('/ocorrencia', methods=['GET', 'POST'])
@@ -524,6 +647,7 @@ def ocorrencia():
              f'placeholder="Descreva o que aconteceu, onde e quando"></textarea>'
              f'<button type="submit">Registrar</button></form>'
              f'<div class="links"><a href="/">← Dashboard</a>'
+             f'<a href="/propostas">Votações</a>'
              f'<a href="/logout">Sair</a></div></div>')
 
 
@@ -531,6 +655,253 @@ def ocorrencia():
 @need_admin
 def admin_ocorrencias():
     return redirect('/admin')
+
+
+@app.post('/admin/ocorrencia/<int:oid>/resolver')
+@need_admin
+def resolver_ocorrencia(oid):
+    conn = odb()
+    conn.execute('UPDATE ocorrencias SET resolvida = 1 - resolvida WHERE id = ?', (oid,))
+    conn.commit()
+    return {'ok': True}
+
+
+# ---------------- propostas & votação ----------------
+
+PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Propostas · Elit's Park</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+ :root{--bg:#080d19;--panel:rgba(17,26,45,.78);--border:rgba(148,163,184,.13);
+  --muted:#91a0b8;--text:#edf3fc;--cyan:#55d5d0;--favor:#34d399;--contra:#fb7185}
+ *{margin:0;padding:0;box-sizing:border-box}
+ body{min-height:100vh;padding:34px 24px 70px;color:var(--text);font-family:'Inter',sans-serif;
+  background:radial-gradient(900px 500px at 8% -8%,rgba(85,213,208,.13),transparent 63%),
+   radial-gradient(700px 430px at 100% 5%,rgba(118,169,255,.10),transparent 65%),
+   linear-gradient(145deg,#080d19,#0a1020 58%,#080d19)}
+ .wrap{max-width:760px;margin:0 auto}
+ .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
+ .brand{display:flex;align-items:center;gap:14px}
+ .mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;
+  color:#07131a;background:linear-gradient(145deg,#83e5d4,#50c6c6);font-weight:700;
+  box-shadow:0 8px 28px rgba(85,213,208,.18)}
+ .eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
+ h1{font-family:'Space Grotesk',sans-serif;font-size:25px;letter-spacing:-.5px}
+ .links{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid var(--border);
+  border-radius:13px;background:rgba(12,20,36,.75)}
+ .links a{font-size:12.5px;font-weight:600;color:var(--muted);padding:9px 12px;
+  border-radius:9px;text-decoration:none;transition:.18s;white-space:nowrap}
+ .links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+ .links a.exit{color:#ff9eaa}
+ .intro{margin:28px 0 18px}
+ .intro h2{font-family:'Space Grotesk';font-size:clamp(24px,3vw,32px);letter-spacing:-1px}
+ .intro p{color:var(--muted);font-size:14px;margin-top:6px}
+ .unit-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
+  border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:18px}
+ .unit-card label{color:var(--muted);font-size:11px;letter-spacing:1.2px;
+  text-transform:uppercase;font-weight:700;white-space:nowrap}
+ .unit-card input{flex:1;min-width:130px;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--border);background:rgba(4,10,20,.55);color:var(--text);
+  font-family:inherit;font-size:14px;font-weight:600;outline:none}
+ .unit-card input:focus{border-color:var(--cyan)}
+ .unit-hint{color:#66758b;font-size:11px;white-space:nowrap}
+ .prop{background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
+  border:1px solid var(--border);border-radius:18px;padding:19px 20px;margin-bottom:13px;
+  box-shadow:0 15px 45px rgba(0,0,0,.13)}
+ .prop-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
+ .pstate{font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;
+  letter-spacing:.8px;text-transform:uppercase}
+ .pstate.open{color:#8be2c5;background:rgba(85,213,208,.12);border:1px solid rgba(85,213,208,.25)}
+ .pstate.closed{color:#a5b2c6;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.18)}
+ .pdate{color:#718098;font-size:10.5px}
+ .ptit{font-family:'Space Grotesk';font-size:17px;letter-spacing:-.2px;margin-bottom:5px}
+ .pdesc{color:var(--muted);font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+ .vbar{display:flex;height:9px;border-radius:99px;overflow:hidden;
+  background:rgba(148,163,184,.12);margin:13px 0 7px}
+ .vbar .f{background:var(--favor)} .vbar .c{background:var(--contra)}
+ .vbar .f,.vbar .c{transition:width .4s}
+ .vnums{display:flex;justify-content:space-between;font-size:11.5px;color:#a5b2c6}
+ .vnums .fv{color:var(--favor);font-weight:700}.vnums .ct{color:var(--contra);font-weight:700}
+ .vote-row{display:flex;gap:9px;margin-top:13px}
+ .vb{flex:1;padding:11px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;
+  transition:.15s;border:1px solid}
+ .vb.favor{color:var(--favor);border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.07)}
+ .vb.favor:hover{background:rgba(52,211,153,.16)}
+ .vb.contra{color:var(--contra);border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.07)}
+ .vb.contra:hover{background:rgba(251,113,133,.16)}
+ .vb.mine{outline:2px solid currentColor;outline-offset:1px}
+ .voted{font-size:11.5px;color:#a5b2c6;margin-top:9px;text-align:center}
+ .voted b{color:var(--cyan)}
+ .empty{color:var(--muted);text-align:center;padding:44px 14px;font-size:13.5px}
+ #toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,80px);opacity:0;
+  transition:.25s;background:#101a2b;border:1px solid rgba(85,213,208,.4);border-radius:12px;
+  padding:12px 18px;font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.55);z-index:99;max-width:90vw}
+ #toast.show{transform:translate(-50%,0);opacity:1}
+ #toast.bad{border-color:rgba(251,113,133,.5)}
+ @media(max-width:650px){
+  body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
+  .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
+  .mark{width:40px;height:40px}.unit-card{flex-direction:column;align-items:stretch}
+  .unit-hint{text-align:center}.vote-row{flex-direction:column}
+ }
+</style><link rel="stylesheet" href="/theme.css"></head><body>
+<div class="wrap">
+ <div class="topbar">
+  <div class="brand"><div class="mark" aria-hidden="true">EP</div>
+   <div><div class="eyebrow">Condomínio Elit's Park</div><h1>Propostas & votações</h1></div>
+  </div>
+  <div class="links">
+   <a href="/">Painel</a><a href="/historico.html">Histórico</a>
+   <a href="/ocorrencia">Ocorrência</a><a class="exit" href="/logout">Sair</a>
+  </div>
+ </div>
+ <section class="intro">
+  <h2>Decida junto.</h2>
+  <p>Propostas da administração abertas à votação — um voto por unidade, você pode mudar enquanto a votação estiver aberta.</p>
+ </section>
+ <div class="unit-card">
+  <label for="unid">Sua unidade</label>
+  <input id="unid" placeholder="Ex.: A3-11" maxlength="12" autocomplete="off">
+  <span class="unit-hint">Necessária para votar · fica salva neste aparelho</span>
+ </div>
+ <div id="lista"></div>
+</div>
+<div id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let props = [];
+
+function toast(msg, bad) {
+  const t = $('toast'); t.textContent = msg;
+  t.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 4200);
+}
+
+function unidade() { return $('unid').value.trim().toUpperCase(); }
+
+async function carregar() {
+  const u = unidade();
+  const r = await fetch('/api/propostas' + (u ? '?unidade=' + encodeURIComponent(u) : ''));
+  if (!r.ok) throw new Error('Não foi possível carregar as propostas.');
+  props = (await r.json()).propostas;
+  render();
+}
+
+function render() {
+  $('lista').innerHTML = props.length ? props.map(p => {
+    const tot = p.favor + p.contra;
+    const pf = tot ? p.favor * 100 / tot : 0;
+    const btns = p.aberta ? `
+     <div class="vote-row">
+      <button class="vb favor ${p.meu_voto === 'favor' ? 'mine' : ''}" data-v="favor" data-p="${p.id}">👍 A favor</button>
+      <button class="vb contra ${p.meu_voto === 'contra' ? 'mine' : ''}" data-v="contra" data-p="${p.id}">👎 Contra</button>
+     </div>
+     ${p.meu_voto ? `<div class="voted">Seu voto atual: <b>${p.meu_voto === 'favor' ? 'a favor' : 'contra'}</b> — vote de novo para mudar</div>` : ''}`
+      : '';
+    return `<article class="prop">
+     <div class="prop-top"><span class="pstate ${p.aberta ? 'open' : 'closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
+      <time class="pdate">${esc(p.criado)}</time></div>
+     <h3 class="ptit">${esc(p.titulo)}</h3>
+     ${p.descricao ? `<p class="pdesc">${esc(p.descricao)}</p>` : ''}
+     <div class="vbar"><div class="f" style="width:${pf}%"></div><div class="c" style="width:${100 - pf}%"></div></div>
+     <div class="vnums"><span class="fv">${p.favor} a favor</span><span>${tot} ${tot === 1 ? 'voto' : 'votos'}</span><span class="ct">${p.contra} contra</span></div>
+     ${btns}
+    </article>`;
+  }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
+}
+
+$('lista').addEventListener('click', async e => {
+  const b = e.target.closest('[data-v]');
+  if (!b) return;
+  if (!unidade()) { toast('Informe sua unidade para votar.', true); $('unid').focus(); return; }
+  const fd = new FormData();
+  fd.append('unidade', unidade()); fd.append('voto', b.dataset.v);
+  try {
+    const r = await fetch(`/proposta/${b.dataset.p}/voto`, { method: 'POST', body: fd });
+    const j = await r.json();
+    toast(j.msg || 'Erro ao votar.', !r.ok || !j.ok);
+    if (r.ok && j.ok) await carregar();
+  } catch { toast('Falha de conexão.', true); }
+});
+
+$('unid').value = localStorage.getItem('prop_unidade') || '';
+$('unid').addEventListener('input', () => {
+  localStorage.setItem('prop_unidade', unidade());
+  clearTimeout($('unid')._h);
+  $('unid')._h = setTimeout(() => carregar().catch(() => {}), 500);
+});
+carregar().catch(e => toast(e.message, true));
+</script></body></html>"""
+
+
+@app.get('/propostas')
+@need_login
+def propostas_page():
+    return PROPOSTAS_HTML
+
+
+@app.get('/api/propostas')
+@need_login
+def api_propostas():
+    conn = odb()
+    unidade = request.args.get('unidade', '').strip().upper()
+    mine = {}
+    if unidade:
+        mine = {pid: v for pid, v in conn.execute(
+            'SELECT proposta_id, voto FROM votos WHERE unidade = ?', (unidade,))}
+    return {'propostas': [
+        {'id': i, 'criado': c, 'titulo': t, 'descricao': d, 'aberta': bool(ab),
+         'favor': f, 'contra': co, 'meu_voto': mine.get(i)}
+        for i, c, t, d, ab, f, co in propostas_rows(conn)]}
+
+
+@app.post('/proposta/<int:pid>/voto')
+@need_login
+def votar(pid):
+    unidade = request.form.get('unidade', '').strip().upper()
+    voto = request.form.get('voto', '')
+    if not unidade or voto not in ('favor', 'contra'):
+        return {'ok': False, 'msg': 'Informe sua unidade e escolha uma opção.'}, 400
+    conn = odb()
+    p = conn.execute('SELECT aberta FROM propostas WHERE id = ?', (pid,)).fetchone()
+    if not p:
+        return {'ok': False, 'msg': 'Proposta não encontrada.'}, 404
+    if not p[0]:
+        return {'ok': False, 'msg': 'Votação encerrada.'}, 400
+    conn.execute(
+        """INSERT INTO votos(proposta_id, unidade, voto) VALUES (?,?,?)
+           ON CONFLICT(proposta_id, unidade) DO UPDATE SET voto = excluded.voto""",
+        (pid, unidade, voto))
+    conn.commit()
+    return {'ok': True, 'msg': 'Voto registrado — obrigado!'}
+
+
+@app.post('/admin/proposta')
+@need_admin
+def nova_proposta():
+    titulo = request.form.get('titulo', '').strip()
+    if not titulo:
+        return {'ok': False, 'msg': 'Informe o título da proposta.'}, 400
+    conn = odb()
+    conn.execute('INSERT INTO propostas(titulo, descricao) VALUES (?,?)',
+                 (titulo, request.form.get('descricao', '').strip() or None))
+    conn.commit()
+    return {'ok': True, 'msg': 'Proposta publicada para votação'}
+
+
+@app.post('/admin/proposta/<int:pid>/alternar')
+@need_admin
+def alternar_proposta(pid):
+    conn = odb()
+    conn.execute('UPDATE propostas SET aberta = 1 - aberta WHERE id = ?', (pid,))
+    conn.commit()
+    return {'ok': True}
 
 
 @app.get('/dados.js')

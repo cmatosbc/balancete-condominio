@@ -52,6 +52,9 @@ if not ADMIN_PW or not MORADOR_PW:
 PAGE = """<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>{{titulo}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
  body{background:radial-gradient(1100px 600px at 15% -10%,rgba(56,189,248,.10),transparent 60%),#070c1a;
       color:#e8edf6;font-family:Inter,system-ui,sans-serif;min-height:100vh;display:flex;
@@ -85,7 +88,7 @@ PAGE = """<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
  td:last-child,th:last-child{text-align:right}
  a{color:#38bdf8;text-decoration:none} a:hover{text-decoration:underline}
  .links{margin-top:20px;display:flex;justify-content:space-between;font-size:13px}
-</style></head><body>{{body|safe}}</body></html>"""
+</style><link rel="stylesheet" href="/theme.css"></head><body>{{body|safe}}</body></html>"""
 
 
 def role():
@@ -167,7 +170,7 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
 <meta name="robots" content="noindex,nofollow"><title>Admin · Elit's Park</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
  :root{--bg:#080d19;--panel:rgba(17,26,45,.78);--panel2:#0c1424;
   --border:rgba(148,163,184,.13);--muted:#91a0b8;--text:#edf3fc;
@@ -279,7 +282,7 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   .grid{gap:12px}.dropzone{min-height:170px}.section-title{align-items:start;flex-direction:column}
  }
  @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
-</style></head><body>
+</style><link rel="stylesheet" href="/theme.css"></head><body class="admin-page">
 <div class="wrap">
  <div class="topbar">
   <div class="brand"><div class="mark" aria-hidden="true">EP</div>
@@ -534,6 +537,11 @@ def admin_ocorrencias():
 @need_login
 def dadosjs():
     return send_from_directory(DATA_DIR, 'dados.js', mimetype='application/javascript')
+
+
+@app.get('/theme.css')
+def theme_css():
+    return send_from_directory(BASE, 'theme.css', mimetype='text/css')
 
 
 @app.get('/<path:fname>')

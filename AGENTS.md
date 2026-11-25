@@ -9,6 +9,8 @@ Condomínio21 / Brancalion).
 - `index.html` — dashboard do mês. Aceita `?mes=AAAA-MM` (padrão: mais recente)
 - `historico.html` — histórico: evolução da água, receitas×despesas,
   composição das despesas, inadimplência e insights automáticos
+- `theme.css` — tokens e estilos compartilhados (paleta, tipografia,
+  navegação, foco) entre páginas estáticas e telas Flask
 - `dados.js` — gerado pelo `extrair.py` (`window.DADOS = {unidades, meses: {...}}`)
 - `extrair.py` — parseia o PDF, grava o mês no banco, arquiva em `pdfs/`,
   regenera `dados.js`

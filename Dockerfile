@@ -6,7 +6,7 @@ RUN apt-get update \
     && pip install --no-cache-dir flask gunicorn
 
 WORKDIR /app
-COPY extrair.py app.py index.html historico.html senha.js ./
+COPY extrair.py app.py index.html historico.html senha.js theme.css ./
 COPY pdfs /seed/pdfs
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

@@ -31,6 +31,7 @@ e comita — o GitHub Pages republica o site em ~1 minuto.
 |---|---|
 | `index.html` | Dashboard do mês (`?mes=AAAA-MM` para meses anteriores) |
 | `historico.html` | Evolução mensal e insights automáticos |
+| `theme.css` | Tokens compartilhados de cor, tipografia, navegação e foco |
 | `dados.js` | Gerado — `window.DADOS` com todos os meses |
 | `extrair.py` | Parser do PDF → SQLite → `dados.js` |
 | `balancetes.db` | Banco SQLite (fonte da verdade; regenerável a partir de `pdfs/`) |

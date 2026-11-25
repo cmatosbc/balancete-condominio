@@ -1,7 +1,18 @@
-FROM nginx:alpine
+FROM python:3.12-slim
 
-# Site estático: dados.js é regenerado pelo extrair.py (git/CI) antes do build.
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY index.html historico.html dados.js senha.js /usr/share/nginx/html/
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends poppler-utils \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir flask gunicorn
 
-EXPOSE 80
+WORKDIR /app
+COPY extrair.py app.py index.html historico.html senha.js ./
+COPY pdfs /seed/pdfs
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENV DATA_DIR=/data
+VOLUME /data
+EXPOSE 8000
+
+ENTRYPOINT ["/entrypoint.sh"]

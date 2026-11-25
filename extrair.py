@@ -14,6 +14,7 @@ Requer: pdftotext (poppler-utils).
 import csv
 import io
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -23,9 +24,10 @@ import unicodedata
 from pathlib import Path
 
 UNIDADES = 144  # nº de unidades do condomínio (não consta no PDF)
-DB = Path(__file__).with_name("balancetes.db")
-DADOSJS = Path(__file__).with_name("dados.js")
-PDFS = Path(__file__).with_name("pdfs")
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent))
+DB = DATA_DIR / "balancetes.db"
+DADOSJS = DATA_DIR / "dados.js"
+PDFS = DATA_DIR / "pdfs"
 
 NUM_RE = re.compile(r"^\(?-?[\d.]*\d,\d{2}\)?%?$")
 MESES = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",

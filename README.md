@@ -43,16 +43,27 @@ python3 -m http.server 8765   # ou abra os HTMLs direto no navegador
 python3 extrair.py --listar   # meses no banco
 ```
 
-## Docker
+## Docker (deploy completo — 2 níveis de acesso)
 
-Imagem mínima (nginx + estáticos, ~62 MB):
+App Flask + gunicorn com sessões reais:
+
+- **morador** — vê os dashboards e simula o próprio boleto
+- **admin** — idem + `/admin` sobe o PDF do balancete (vira base para todos)
 
 ```bash
-docker compose up -d --build   # sobe em http://localhost:8080
-docker compose down            # para
+ADMIN_PASSWORD=segredo-admin MORADOR_PASSWORD=senha-condominio \
+  docker compose up -d --build        # http://localhost:8080
 ```
 
-Ou sem compose: `docker build -t balancete . && docker run -d -p 8080:80 balancete`
+Sem compose:
+```bash
+docker build -t balancete . && \
+docker run -d -p 8080:8000 -v $(pwd)/data:/data \
+  -e ADMIN_PASSWORD=x -e MORADOR_PASSWORD=y balancete
+```
 
-> O `dados.js` vai congelado na imagem — depois de importar um mês novo,
-> rebuildar (`docker compose up -d --build`) para o container refletir.
+- Volume `./data` persiste banco, `dados.js`, PDFs arquivados e a chave
+  de sessão gerada (`SECRET_KEY` no env a sobrescreve).
+- No primeiro boot, os PDFs de `pdfs/` (imagem) semeiam o banco.
+- Login: mesma página aceita a senha de morador ou de admin — o papel
+  é derivado da senha usada.

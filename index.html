@@ -195,8 +195,9 @@
 <nav class="topnav">
   <span class="on">Mês</span>
   <a href="historico.html">Histórico →</a>
+  <a href="/admin" id="navAdmin" style="display:none">Admin</a>
   <select id="mesSel"></select>
-  <a href="#" title="Sair" onclick="localStorage.removeItem('cond_acesso_v1');location.reload();return false">🔒</a>
+  <a href="#" title="Sair" onclick="if(document.cookie.indexOf('cond_app=1')>=0){location.href='/logout'}else{localStorage.removeItem('cond_acesso_v1');location.reload()};return false">🔒</a>
 </nav>
 <div class="wrap">
 
@@ -326,6 +327,7 @@ const state = { taxa: 0, fundo: 0, boleto: 0, agua: 0, outras: 0 };
     sel.appendChild(o);
   });
   sel.addEventListener('change', () => { location.href = 'index.html?mes=' + sel.value; });
+  if (document.cookie.indexOf('cond_role=admin') >= 0) $('navAdmin').style.display = '';
   $('eyebrow').textContent = 'Balancete · ' + dados.mesLabel;
   $('condNome').textContent = dados.condominio.replace(/^Condominio\s*/i, '');
   $('headerSub').innerHTML = `Período <b>${dados.periodo}</b> · <b>${UNIDADES} unidades</b> · edite os valores do seu boleto no painel abaixo`;

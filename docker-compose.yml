@@ -2,5 +2,12 @@ services:
   site:
     build: .
     ports:
-      - "8080:80"
+      - "8080:8000"
+    environment:
+      # troque via .env ou -e; admin sobe PDFs, morador só visualiza
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      MORADOR_PASSWORD: ${MORADOR_PASSWORD:-condominio}
+      SECRET_KEY: ${SECRET_KEY:-}
+    volumes:
+      - ./data:/data
     restart: unless-stopped

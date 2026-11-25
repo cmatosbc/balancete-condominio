@@ -77,7 +77,8 @@
 <nav class="topnav">
   <a href="index.html">← Mês</a>
   <span class="on">Histórico</span>
-  <a href="#" title="Sair" onclick="localStorage.removeItem('cond_acesso_v1');location.reload();return false">🔒</a>
+  <a href="/admin" id="navAdmin" style="display:none">Admin</a>
+  <a href="#" title="Sair" onclick="if(document.cookie.indexOf('cond_app=1')>=0){location.href='/logout'}else{localStorage.removeItem('cond_acesso_v1');location.reload()};return false">🔒</a>
 </nav>
 <div class="wrap">
 
@@ -140,6 +141,7 @@
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const pct1 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 const $ = id => document.getElementById(id);
+if (document.cookie.indexOf('cond_role=admin') >= 0) $('navAdmin').style.display = '';
 const DB = window.DADOS, UNID = DB.unidades;
 const keys = Object.keys(DB.meses).sort();
 const M = keys.map(k => DB.meses[k]);

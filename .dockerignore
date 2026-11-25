@@ -3,9 +3,8 @@
 .gitignore
 __pycache__
 *.pyc
-pdfs
+data
 balancetes.db
-extrair.py
 *.md
 docker-compose.yml
 Dockerfile

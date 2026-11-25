@@ -15,9 +15,15 @@ Condomínio21 / Brancalion).
 - `balancetes.db` — SQLite; tabela `meses` (chave `ano_mes` + JSON completo).
   Cache local/CI — não é versionado (regenerável com `extrair.py pdfs`)
 - `pdfs/` — balancetes originais (`AAAA-MM.pdf`)
-- `senha.js` — portão de senha VISUAL (não é segurança real; repo é público).
-  Senha: `elitspark2026` (hash SHA-256 em `EXPECTED`).
-  Trocar: `echo -n "NOVA" | sha256sum` → colar em `senha.js` → commit.
+- `senha.js` — portão de senha VISUAL para o modo estático/Pages
+  (senha `elitspark2026`, hash SHA-256 em `EXPECTED`; no modo Docker o
+  cookie `cond_app` pula o portão — a sessão do app é a auth real).
+- `app.py` — servidor Flask (Docker): login por senha com 2 níveis
+  (`ADMIN_PASSWORD`/`MORADOR_PASSWORD` no env), `/admin` + `POST /upload`
+  só para admin, `SECRET_KEY` persistida em `DATA_DIR/.secret_key`.
+- `Dockerfile` / `entrypoint.sh` / `docker-compose.yml` — imagem
+  python+poppler+gunicorn; volume `/data`; PDFs de `pdfs/` semeiam o banco.
+- `data/` — artefatos de runtime do container (gitignored).
 - `.github/workflows/atualizar.yml` — CI: push em `pdfs/` → extrai → commita
 - `AGENTS.md` — este arquivo
 

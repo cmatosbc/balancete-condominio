@@ -7,6 +7,8 @@
 (function () {
   var EXPECTED = '39de14ed30aaf702a2482093b94a426550a4b0896f0614531d690125022f455b';
   var KEY = 'cond_acesso_v1';
+  // app.py já autenticou no servidor (cookie-hint) — portão desnecessário
+  if (document.cookie.indexOf('cond_app=1') !== -1) return;
   if (localStorage.getItem(KEY) === EXPECTED) return;
 
   document.documentElement.style.background = '#070c1a';

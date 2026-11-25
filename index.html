@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condomínio Elit's Park — Balancete</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0e1c;
+    --card: rgba(255,255,255,.035);
+    --border: rgba(255,255,255,.08);
+    --text: #eef2fa;
+    --muted: #8f9bb5;
+    --water: #38bdf8;
+    --good: #34d399;
+    --bad: #fb7185;
+  }
+  body {
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(56,189,248,.10), transparent 60%),
+      radial-gradient(1000px 500px at -10% 30%, rgba(139,92,246,.08), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  header { margin-bottom: 34px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--water); font-weight: 600;
+    padding: 6px 14px; border: 1px solid rgba(56,189,248,.3);
+    border-radius: 999px; background: rgba(56,189,248,.07);
+    margin-bottom: 16px;
+  }
+  h1 { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -.02em; }
+  h1 .accent { background: linear-gradient(90deg, #7dd3fc, #38bdf8, #6366f1); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--muted); margin-top: 10px; font-size: 15px; }
+  .sub b { color: var(--text); font-weight: 600; }
+
+  .grid { display: grid; gap: 16px; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px 24px;
+    backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
+  }
+  .card .label { font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 600; }
+  .card .value { font-size: 26px; font-weight: 800; margin-top: 8px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .card .hint { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .value.pos { color: var(--good); } .value.neg { color: var(--bad); }
+  .kpi-glow { position: absolute; inset: 0; background: radial-gradient(240px 120px at 20% 0%, rgba(56,189,248,.12), transparent 70%); pointer-events: none; }
+
+  /* ===== HERO ÁGUA ===== */
+  .hero {
+    margin: 16px 0;
+    border-radius: 22px;
+    border: 1px solid rgba(56,189,248,.28);
+    background:
+      radial-gradient(700px 300px at 15% 0%, rgba(56,189,248,.16), transparent 65%),
+      linear-gradient(160deg, rgba(37,99,235,.14), rgba(10,14,28,.4) 55%),
+      var(--card);
+    padding: 34px 34px 30px;
+    position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content: ""; position: absolute; right: -120px; top: -120px; width: 340px; height: 340px;
+    border-radius: 50%; background: radial-gradient(circle, rgba(56,189,248,.18), transparent 65%);
+    pointer-events: none;
+  }
+  .hero h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .12em; color: #7dd3fc; font-weight: 700; }
+  .hero .big { font-size: clamp(44px, 6vw, 68px); font-weight: 800; letter-spacing: -.03em; margin: 8px 0 2px;
+    background: linear-gradient(180deg, #e0f2fe, #38bdf8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero .big small { font-size: 20px; font-weight: 700; }
+  .hero .subline { color: var(--muted); font-size: 14px; max-width: 640px; line-height: 1.6; }
+  .hero .subline b { color: #bae6fd; font-weight: 600; }
+
+  .hero-cols { display: grid; grid-template-columns: 1.35fr .9fr; gap: 34px; align-items: center; }
+  @media (max-width: 820px) { .hero-cols { grid-template-columns: 1fr; } }
+
+  .boleto-bar { margin-top: 26px; }
+  .boleto-bar .track {
+    display: flex; height: 46px; border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25);
+  }
+  .seg { position: relative; transition: width .35s cubic-bezier(.22,.8,.3,1), filter .2s; cursor: default; }
+  .seg:hover { filter: brightness(1.2); }
+  .seg.agua { background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+  .seg.outras { background: linear-gradient(90deg, #334155, #475569); }
+  .seg.fundo { background: repeating-linear-gradient(45deg, rgba(251,191,36,.35) 0 8px, rgba(251,191,36,.18) 8px 16px); }
+  .seg .seg-label {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #04121f; white-space: nowrap; overflow: hidden; padding: 0 6px;
+  }
+  .seg.outras .seg-label { color: #cbd5e1; }
+  .seg.fundo .seg-label { color: #fde68a; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .legend-row .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; vertical-align: -1px; }
+  .legend-row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .water-stats { display: grid; gap: 12px; }
+  .wstat { background: rgba(2,6,23,.45); border: 1px solid rgba(56,189,248,.16); border-radius: 14px; padding: 14px 18px; }
+  .wstat .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .09em; color: #7dd3fc; font-weight: 600; }
+  .wstat .v { font-size: 21px; font-weight: 800; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .wstat .d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .input-card { border-color: rgba(56,189,248,.4); background: rgba(14,165,233,.08); }
+  .inp-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+  .inp-row label { font-size: 12.5px; color: var(--muted); }
+  .inp-wrap { display: flex; align-items: center; gap: 5px; background: rgba(2,6,23,.6); border: 1px solid rgba(56,189,248,.3); border-radius: 9px; padding: 6px 10px; transition: border-color .15s, box-shadow .15s; }
+  .inp-wrap:focus-within { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.18); }
+  .inp-wrap span { color: #7dd3fc; font-size: 12.5px; font-weight: 600; }
+  .inp-wrap input { background: transparent; border: none; outline: none; color: var(--text); font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; width: 84px; text-align: right; font-size: 15px; }
+  .inp-total { margin-top: 11px; font-size: 12.5px; color: var(--muted); }
+  .inp-total b { color: var(--text); }
+
+  /* ===== SEÇÕES ===== */
+  .section-title { font-size: 18px; font-weight: 700; margin: 38px 0 14px; display: flex; align-items: baseline; gap: 10px; }
+  .section-title span { color: var(--muted); font-size: 13px; font-weight: 500; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+  .donut-flex { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .donut-box { position: relative; flex: 0 0 240px; }
+  .donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+  .donut-center .t { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .donut-center .v { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .donut-legend { flex: 1; min-width: 240px; display: grid; gap: 8px; }
+  .dl-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; font-size: 13.5px; cursor: default; transition: background .15s; }
+  .dl-item:hover, .dl-item.hl { background: rgba(255,255,255,.06); }
+  .dl-item .sw { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+  .dl-item .nm { flex: 1; color: #cbd5e1; }
+  .dl-item .vl { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dl-item .pc { color: var(--muted); width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .bars { display: grid; gap: 11px; }
+  .bar-row { display: grid; grid-template-columns: 190px 1fr 92px; gap: 12px; align-items: center; font-size: 13px; }
+  .bar-row .nm { color: #cbd5e1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-row .nm.is-water { color: #7dd3fc; font-weight: 700; }
+  .bar-row .val { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .bar-track { height: 20px; background: rgba(255,255,255,.05); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; width: 0; transition: width 1s cubic-bezier(.22,.8,.3,1); }
+  .bar-fill.water { background: linear-gradient(90deg, #0ea5e9, #38bdf8); box-shadow: 0 0 14px rgba(56,189,248,.5); }
+  .bar-fill.norm { background: linear-gradient(90deg, #475569, #64748b); }
+
+  table.mini { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.mini th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.mini td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,.05); font-variant-numeric: tabular-nums; }
+  table.mini td.num { text-align: right; font-weight: 600; }
+  table.mini tr:last-child td { border-bottom: none; }
+  table.mini tr.hl td { color: #7dd3fc; font-weight: 600; }
+
+  .contas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .conta { background: rgba(2,6,23,.4); border: 1px solid var(--border); border-radius: 14px; padding: 15px 17px; }
+  .conta .cn { font-size: 12px; color: var(--muted); }
+  .conta .cv { font-size: 19px; font-weight: 800; margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .conta .ct { font-size: 11.5px; margin-top: 4px; }
+  .ct.up { color: var(--good); } .ct.down { color: var(--bad); }
+
+  .note { margin-top: 30px; font-size: 12.5px; color: var(--muted); line-height: 1.7; border-left: 3px solid rgba(251,191,36,.5); padding: 4px 0 4px 16px; }
+  .note b { color: #fcd34d; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: rgba(8,12,26,.95); border: 1px solid rgba(56,189,248,.35);
+    border-radius: 10px; padding: 10px 13px; font-size: 12.5px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); opacity: 0; transition: opacity .12s;
+    backdrop-filter: blur(6px);
+  }
+  #tooltip .tt-name { font-weight: 700; color: #e0f2fe; }
+  #tooltip .tt-val { color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  footer { margin-top: 46px; text-align: center; color: #5b6680; font-size: 12px; }
+
+  .topnav { position: absolute; top: 40px; right: 20px; display: flex; gap: 10px; align-items: center; }
+  .topnav a, .topnav .on { font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 10px; text-decoration: none; }
+  .topnav .on { color: #7dd3fc; background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.3); }
+  .topnav a { color: var(--muted); border: 1px solid var(--border); transition: color .15s, border-color .15s; }
+  .topnav a:hover { color: var(--text); border-color: rgba(56,189,248,.4); }
+  .topnav select { background: rgba(2,6,23,.7); color: var(--text); border: 1px solid rgba(56,189,248,.3); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 13px; outline: none; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="tooltip"></div>
+<nav class="topnav">
+  <span class="on">Mês</span>
+  <a href="historico.html">Histórico →</a>
+  <select id="mesSel"></select>
+</nav>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow" id="eyebrow">Balancete</div>
+    <h1>Condomínio <span class="accent" id="condNome">Elit's Park</span></h1>
+    <div class="sub" id="headerSub"></div>
+  </header>
+
+  <div class="grid kpis">
+    <div class="card"><div class="kpi-glow"></div><div class="label">Receitas</div><div class="value" id="kRec">–</div><div class="hint">taxa, fundo, extras e multas</div></div>
+    <div class="card"><div class="label">Despesas</div><div class="value" id="kDesp">–</div><div class="hint" id="kDespHint"></div></div>
+    <div class="card"><div class="label">Resultado do mês</div><div class="value" id="kRes">–</div><div class="hint">resumo do balancete</div></div>
+    <div class="card"><div class="label">Saldo em contas</div><div class="value" id="kSaldo">–</div><div class="hint" id="kSaldoHint"></div></div>
+  </div>
+
+  <!-- ============ ÁGUA ============ -->
+  <section class="hero">
+    <h2>💧 Quanto do seu condomínio é água?</h2>
+    <div class="hero-cols">
+      <div>
+        <div class="big"><small>R$</small> <span id="bigWater">–</span></div>
+        <div class="subline">
+          Dos <b id="txtTaxa">–</b> da taxa de condomínio da unidade (boleto sem o fundo de reserva),
+          <b><span id="txtAgua">–</span> — <span id="txtPctTaxa">–</span></b> — pagam a conta de água do condomínio.
+          A média entre as <span id="txtUnid">–</span> unidades é de <b id="txtMedia">–</b>
+          <span id="fracNote"></span>.
+        </div>
+        <div class="boleto-bar">
+          <div class="track" id="boletoTrack"></div>
+          <div class="legend-row">
+            <span><i class="dot" style="background:#38bdf8"></i>Água <b id="lgAgua">–</b></span>
+            <span><i class="dot" style="background:#475569"></i>Demais despesas <b id="lgOutras">–</b></span>
+            <span><i class="dot" style="background:rgba(251,191,36,.5)"></i>Fundo de reserva <b id="lgFundo">–</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="water-stats">
+        <div class="wstat input-card">
+          <div class="k">Edite com os valores do seu boleto</div>
+          <div class="inp-row"><label for="inpTaxa">Taxa de condomínio</label><div class="inp-wrap"><span>R$</span><input id="inpTaxa" inputmode="decimal" autocomplete="off"></div></div>
+          <div class="inp-row"><label for="inpFundo">Fundo de reserva</label><div class="inp-wrap"><span>R$</span><input id="inpFundo" inputmode="decimal" autocomplete="off"></div></div>
+          <div class="inp-total">Boleto total: <b id="boletoTotal">–</b></div>
+        </div>
+        <div class="wstat"><div class="k">Conta de água do mês</div><div class="v" id="wsAguaTotal">–</div><div class="d" id="wsAguaTotalD">–</div></div>
+        <div class="wstat"><div class="k">Por unidade (média)</div><div class="v" id="wsMedia">–</div><div class="d" id="wsMediaD">–</div></div>
+        <div class="wstat"><div class="k">Água no seu boleto</div><div class="v" id="wsAgua">–</div><div class="d" id="wsAguaD">–</div></div>
+      </div>
+    </div>
+  </section>
+
+  <h3 class="section-title">Para onde foi o dinheiro <span>grupos de despesa · passe o mouse no gráfico</span></h3>
+  <div class="two-col">
+    <div class="card">
+      <div class="donut-flex">
+        <div class="donut-box">
+          <svg id="donut" width="240" height="240" viewBox="0 0 240 240"></svg>
+          <div class="donut-center"><div class="t">Total</div><div class="v" id="donutTotal">–</div></div>
+        </div>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:14px">Composição do rateio mensal</div>
+      <table class="mini">
+        <tr><th>Item</th><th style="text-align:right">Total</th><th style="text-align:right">Por unidade*</th></tr>
+        <tr><td>Despesas ordinárias p/ rateio</td><td class="num" id="tbRateio">–</td><td class="num" id="tbRateioU">–</td></tr>
+        <tr class="hl"><td>→ Água dentro do rateio</td><td class="num" id="tbAgua">–</td><td class="num" id="tbAguaU">–</td></tr>
+        <tr><td>Fundo de reserva</td><td class="num" id="tbFundo">–</td><td class="num" id="tbFundoU">–</td></tr>
+        <tr><td><b>Seu boleto</b></td><td class="num"><b id="tbBoleto">–</b></td><td class="num" id="tbComp">–</td></tr>
+      </table>
+      <div class="hint" style="margin-top:12px; color:var(--muted); font-size:12px">* média por unidade — o rateio usa fração ideal; unidades maiores pagam mais água. Ajuste os valores no painel acima.</div>
+    </div>
+  </div>
+
+  <h3 class="section-title">Maiores despesas do mês <span>água em destaque</span></h3>
+  <div class="card"><div class="bars" id="topBars"></div></div>
+
+  <h3 class="section-title">Receitas e tarifas públicas</h3>
+  <div class="two-col">
+    <div class="card">
+      <div class="label" style="margin-bottom:14px" id="recTitle">Receitas</div>
+      <div class="bars" id="recBars"></div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:14px" id="tarTitle">Tarifas públicas</div>
+      <div class="bars" id="tarBars"></div>
+      <div class="note" style="margin-top:18px" id="aguaNote"></div>
+    </div>
+  </div>
+
+  <h3 class="section-title">Contas e aplicações <span id="contasSub"></span></h3>
+  <div class="contas" id="contas"></div>
+
+  <div class="note" id="inadNote"></div>
+
+  <footer id="footer"></footer>
+</div>
+
+<script src="dados.js"></script>
+<script>
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const NUM = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct1 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+const $ = id => document.getElementById(id);
+const DB = window.DADOS;
+
+// mês selecionado: ?mes=AAAA-MM ou o mais recente
+const mesKeys = Object.keys(DB.meses).sort();
+const q = new URLSearchParams(location.search).get('mes');
+const mesKey = (q && DB.meses[q]) ? q : mesKeys[mesKeys.length - 1];
+const dados = DB.meses[mesKey];
+
+// Constantes derivadas do balancete
+const RATEIO = dados.rateio, UNIDADES = dados.unidades || DB.unidades;
+const PCT_AGUA = dados.agua / RATEIO; // ~30,26% do rateio ordinário é água
+const state = { taxa: 0, fundo: 0, boleto: 0, agua: 0, outras: 0 };
+
+/* ---------- textos estáticos dinâmicos ---------- */
+(function init() {
+  const t = dados.totais;
+  const sel = $('mesSel');
+  mesKeys.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = DB.meses[k].mesLabel;
+    if (k === mesKey) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', () => { location.href = 'index.html?mes=' + sel.value; });
+  $('eyebrow').textContent = 'Balancete · ' + dados.mesLabel;
+  $('condNome').textContent = dados.condominio.replace(/^Condominio\s*/i, '');
+  $('headerSub').innerHTML = `Período <b>${dados.periodo}</b> · <b>${UNIDADES} unidades</b> · edite os valores do seu boleto no painel abaixo`;
+
+  $('kRec').dataset.count = t.receitas;
+  $('kDesp').dataset.count = t.despesas;
+  $('kRes').dataset.count = t.saldoMes;
+  $('kRes').classList.add(t.saldoMes < 0 ? 'neg' : 'pos');
+  $('kSaldo').dataset.count = t.saldoContas;
+  $('kDespHint').textContent = `ordinárias ${NUM.format(dados.despOrdinarias)} + extras ${NUM.format(dados.despExtras)}`;
+  $('kSaldoHint').textContent = `${dados.contas.length} contas e aplicações`;
+
+  $('txtUnid').textContent = UNIDADES;
+  $('txtMedia').textContent = BRL.format(dados.agua / UNIDADES) + ' por unidade';
+  $('txtPctTaxa').textContent = pct1(PCT_AGUA * 100);
+  $('wsAguaTotal').textContent = BRL.format(dados.agua);
+  $('wsAguaTotalD').textContent = `${pct1(dados.agua / t.despesas * 100)} de todas as despesas · ${pct1(dados.agua / dados.despOrdinarias * 100)} das ordinárias`;
+  $('wsMedia').textContent = BRL.format(dados.agua / UNIDADES);
+  $('wsMediaD').textContent = `${BRL.format(dados.agua)} ÷ ${UNIDADES} unidades`;
+  $('inpTaxa').value = NUM.format(dados.boleto.taxa);
+  $('inpFundo').value = NUM.format(dados.boleto.fundo);
+
+  $('tbRateio').textContent = BRL.format(RATEIO);
+  $('tbRateioU').textContent = BRL.format(RATEIO / UNIDADES);
+  $('tbAgua').textContent = BRL.format(dados.agua);
+  $('tbAguaU').textContent = BRL.format(dados.agua / UNIDADES);
+  $('tbFundo').textContent = BRL.format(dados.fundoRateio);
+  $('tbFundoU').textContent = BRL.format(dados.fundoRateio / UNIDADES);
+  $('donutTotal').textContent = 'R$ ' + NUM.format(Math.round(t.despesas));
+
+  $('recTitle').textContent = 'Receitas — ' + BRL.format(t.receitas);
+  const tar = dados.grupos.find(g => g.key === 'tarifas');
+  $('tarTitle').textContent = 'Tarifas públicas — ' + BRL.format(tar.valor);
+  $('contasSub').textContent = 'saldo transferido: ' + BRL.format(t.saldoContas);
+
+  let aguaExtraTxt = `A água responde por <b>${pct1(dados.agua / tar.valor * 100)}</b> das tarifas públicas.`;
+  if (dados.aguaExtras.length) {
+    const soma = dados.aguaExtras.reduce((s, i) => s + i[1], 0);
+    const lista = dados.aguaExtras.map(i => `${i[0].toLowerCase()} ${BRL.format(i[1])}`).join(', ');
+    aguaExtraTxt += ` Itens adicionais ligados à água no mês: ${lista} (<b>${BRL.format(soma)}</b> em manutenção/estrutura, fora o consumo).`;
+  }
+  if (dados.semae) aguaExtraTxt += dados.semae.sinal === '-'
+    ? ` Utilização de adiantamento à SEMAE: <b>${BRL.format(dados.semae.valor)}</b> abatidos da fatura (${dados.semae.desc.toLowerCase()}).`
+    : ` Pré-pagamento à SEMAE: <b>${BRL.format(dados.semae.valor)}</b> (${dados.semae.desc.toLowerCase()}).`;
+  $('aguaNote').innerHTML = aguaExtraTxt;
+
+  let resTxt = '';
+  if (dados.resultado && dados.resultado.valor) {
+    resTxt = dados.resultado.tipo === 'déficit'
+      ? ` Resultado financeiro: déficit de ${BRL.format(dados.resultado.valor)} já amortizado via conta giro.`
+      : ` Resultado financeiro: superávit de ${BRL.format(dados.resultado.valor)} no mês.`;
+  }
+  if (dados.inadimplencia && dados.inadimplencia.length) {
+    const soma = dados.inadimplencia.reduce((s, i) => s + i.valor, 0);
+    const lista = dados.inadimplencia.map(i =>
+      `${i.aptos} apartamentos devem ${BRL.format(i.valor)} de ${i.tipo === 'Taxa Cond.' ? 'taxa de condomínio' : 'charge extra'}`).join(' e ');
+    $('inadNote').innerHTML = `<b>Inadimplência:</b> ${lista} — juntos, ~${BRL.format(soma)} ` +
+      `(${pct1(soma / t.receitas * 100)} da arrecadação do mês).` + resTxt;
+  } else {
+    $('inadNote').innerHTML = resTxt || 'Sem inadimplência destacada no balancete.';
+  }
+
+  $('footer').textContent = `Fonte: balancete demonstrativo ${dados.condominio} (administradora Brancalion)` +
+    (dados.docId ? ` · documento ${dados.docId}` : '') + ` · gerado por extrair.py`;
+})();
+
+const tooltip = $('tooltip');
+function showTip(e, name, lines) {
+  tooltip.innerHTML = `<div class="tt-name">${name}</div>` + lines.filter(Boolean).map(l => `<div class="tt-val">${l}</div>`).join('');
+  tooltip.style.opacity = 1;
+  moveTip(e);
+}
+function moveTip(e) {
+  const pad = 14, w = tooltip.offsetWidth, h = tooltip.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = e.clientY - h - pad;
+  tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+}
+function hideTip() { tooltip.style.opacity = 0; }
+
+/* ---------- Donut ---------- */
+(function donut() {
+  const svg = $('donut');
+  const total = dados.grupos.reduce((s, g) => s + g.valor, 0);
+  const r = 86, cx = 120, cy = 120, C = 2 * Math.PI * r;
+  svg.innerHTML = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="30"/>`;
+  let acc = 0;
+  const centerV = document.querySelector('.donut-center .v');
+  const centerT = document.querySelector('.donut-center .t');
+  const totalTxt = centerV.textContent;
+
+  dados.grupos.forEach((g, i) => {
+    const frac = g.valor / total;
+    const len = frac * C;
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r);
+    c.setAttribute('fill', 'none'); c.setAttribute('stroke', g.cor);
+    c.setAttribute('stroke-width', 30);
+    c.setAttribute('stroke-dasharray', `0 ${C}`);
+    c.setAttribute('stroke-dashoffset', -acc * C);
+    c.setAttribute('transform', `rotate(-90 ${cx} ${cy})`);
+    c.style.transition = 'stroke-width .18s';
+    c.dataset.idx = i;
+    svg.appendChild(c);
+    setTimeout(() => {
+      c.style.transition = 'stroke-dasharray 1s cubic-bezier(.22,.8,.3,1), stroke-width .18s';
+      c.setAttribute('stroke-dasharray', `${Math.max(len - 2, 0.5)} ${C}`);
+    }, 60 + i * 90);
+
+    const lines = [BRL.format(g.valor), pct1(frac * 100) + ' das despesas'];
+    if (g.key === 'tarifas') lines.push('→ Água: ' + BRL.format(dados.agua));
+    c.addEventListener('mouseenter', e => {
+      c.setAttribute('stroke-width', 36);
+      centerV.textContent = 'R$ ' + NUM.format(g.valor);
+      centerT.textContent = g.nome;
+      document.querySelectorAll('.dl-item')[i]?.classList.add('hl');
+      showTip(e, g.nome, lines);
+    });
+    c.addEventListener('mousemove', moveTip);
+    c.addEventListener('mouseleave', () => {
+      c.setAttribute('stroke-width', 30);
+      centerV.textContent = totalTxt; centerT.textContent = 'Total';
+      document.querySelectorAll('.dl-item').forEach(el => el.classList.remove('hl'));
+      hideTip();
+    });
+    acc += frac;
+  });
+
+  const leg = $('donutLegend');
+  dados.grupos.forEach((g, i) => {
+    const frac = g.valor / total * 100;
+    const d = document.createElement('div');
+    d.className = 'dl-item';
+    const extra = g.key === 'tarifas' ? ' <span style="color:#7dd3fc">· água ' + BRL.format(dados.agua) + '</span>' : '';
+    d.innerHTML = `<span class="sw" style="background:${g.cor}"></span><span class="nm">${g.nome}${extra}</span><span class="vl">R$ ${NUM.format(g.valor)}</span><span class="pc">${pct1(frac)}</span>`;
+    d.addEventListener('mouseenter', e => {
+      const c = svg.querySelector(`circle[data-idx="${i}"]`);
+      if (c) c.setAttribute('stroke-width', 36);
+      centerV.textContent = 'R$ ' + NUM.format(g.valor); centerT.textContent = g.nome;
+      showTip(e, g.nome, [BRL.format(g.valor), pct1(frac) + ' das despesas']);
+    });
+    d.addEventListener('mousemove', moveTip);
+    d.addEventListener('mouseleave', () => {
+      const c = svg.querySelector(`circle[data-idx="${i}"]`);
+      if (c) c.setAttribute('stroke-width', 30);
+      centerV.textContent = totalTxt; centerT.textContent = 'Total'; hideTip();
+    });
+    leg.appendChild(d);
+  });
+})();
+
+/* ---------- Barra do boleto ---------- */
+const segEls = {};
+(function boleto() {
+  const t = $('boletoTrack');
+  [['agua', 'ÁGUA'], ['outras', 'Demais despesas'], ['fundo', 'Fundo']].forEach(([cls, label]) => {
+    const d = document.createElement('div');
+    d.className = 'seg ' + cls;
+    d.innerHTML = `<span class="seg-label">${label}</span>`;
+    d.addEventListener('mouseenter', e => {
+      const tips = {
+        agua:   ['Água da sua unidade: ' + BRL.format(state.agua), pct1(state.agua / (state.boleto || 1) * 100) + ' do seu boleto'],
+        outras: ['Demais despesas ordinárias: ' + BRL.format(state.outras), 'Rateio proporcional à fração ideal'],
+        fundo:  ['Fundo de reserva: ' + BRL.format(state.fundo), 'Excluído do cálculo de água'],
+      };
+      showTip(e, 'Seu boleto — ' + BRL.format(state.boleto), tips[cls]);
+    });
+    d.addEventListener('mousemove', moveTip);
+    d.addEventListener('mouseleave', hideTip);
+    t.appendChild(d);
+    segEls[cls] = d;
+  });
+})();
+
+/* ---------- Simulador: valores editáveis ---------- */
+const inpTaxa = $('inpTaxa'), inpFundo = $('inpFundo');
+function parseBRL(s) {
+  s = (s || '').replace(/[^\d,.]/g, '');
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const v = parseFloat(s);
+  return isNaN(v) ? 0 : v;
+}
+function recalc() {
+  const taxa = parseBRL(inpTaxa.value), fundo = parseBRL(inpFundo.value);
+  const boleto = taxa + fundo;
+  const agua = taxa * PCT_AGUA;
+  const outras = Math.max(taxa - agua, 0);
+  Object.assign(state, { taxa, fundo, boleto, agua, outras });
+  const tot = boleto || 1;
+
+  $('bigWater').textContent = NUM.format(agua);
+  $('txtTaxa').textContent = BRL.format(taxa);
+  $('txtAgua').textContent = BRL.format(agua);
+  $('boletoTotal').textContent = BRL.format(boleto);
+
+  const diff = (taxa / RATEIO * UNIDADES - 1) * 100;
+  $('fracNote').textContent = Math.abs(diff) < 0.5
+    ? '(sua fração ideal está na média do condomínio)'
+    : `(sua fração ideal é ${pct1(Math.abs(diff))} ${diff > 0 ? 'acima' : 'abaixo'} da média)`;
+
+  segEls.agua.style.width = agua / tot * 100 + '%';
+  segEls.outras.style.width = outras / tot * 100 + '%';
+  segEls.fundo.style.width = fundo / tot * 100 + '%';
+  segEls.agua.querySelector('.seg-label').textContent = `ÁGUA ${pct1(agua / tot * 100)}`;
+
+  $('lgAgua').textContent = BRL.format(agua);
+  $('lgOutras').textContent = BRL.format(outras);
+  $('lgFundo').textContent = BRL.format(fundo);
+  $('wsAgua').textContent = BRL.format(agua);
+  $('wsAguaD').textContent = boleto ? `${pct1(agua / boleto * 100)} do boleto total de ${BRL.format(boleto)}` : '—';
+  $('tbBoleto').textContent = BRL.format(boleto);
+  $('tbComp').textContent = NUM.format(taxa) + ' + ' + NUM.format(fundo);
+}
+[inpTaxa, inpFundo].forEach(inp => {
+  inp.addEventListener('input', recalc);
+  inp.addEventListener('blur', () => { inp.value = NUM.format(parseBRL(inp.value)); });
+});
+
+/* ---------- Barras horizontais ---------- */
+function renderBars(id, items, suffix) {
+  const box = $(id);
+  const max = Math.max(...items.map(i => i[1]));
+  items.forEach(([nome, valor, isWater]) => {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `<span class="nm ${isWater ? 'is-water' : ''}">${nome}</span>
+      <div class="bar-track"><div class="bar-fill ${isWater ? 'water' : 'norm'}"></div></div>
+      <span class="val">R$ ${NUM.format(valor)}</span>`;
+    row.addEventListener('mouseenter', e => showTip(e, nome, [BRL.format(valor), suffix || '']));
+    row.addEventListener('mousemove', moveTip);
+    row.addEventListener('mouseleave', hideTip);
+    box.appendChild(row);
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    box.querySelectorAll('.bar-row').forEach((row, i) => {
+      const fill = row.querySelector('.bar-fill');
+      fill.style.width = (items[i][1] / max * 100) + '%';
+      fill.style.transitionDelay = (i * 45) + 'ms';
+    });
+  }));
+}
+// top despesas = todos os itens ordenados, com a água destacada
+const flatItems = [];
+dados.grupos.forEach(g => g.itens.forEach(([n, v]) =>
+  flatItems.push([n, v, g.key === 'tarifas' && /gua/i.test(n)])));
+flatItems.sort((a, b) => b[1] - a[1]);
+renderBars('topBars', flatItems.slice(0, 12), 'despesa do mês');
+renderBars('recBars', dados.receitas.map(([n, v]) => [n, v, false]), 'receita do mês');
+const tarifas = dados.grupos.find(g => g.key === 'tarifas');
+renderBars('tarBars', tarifas.itens.map(([n, v]) => [n, v, /gua/i.test(n)]),
+  pct1(dados.agua / tarifas.valor * 100) + ' das tarifas é água');
+
+/* ---------- Contas ---------- */
+dados.contas.forEach(c => {
+  const down = c.mov.startsWith('−'), up = c.mov.startsWith('+');
+  const d = document.createElement('div');
+  d.className = 'conta';
+  d.innerHTML = `<div class="cn">${c.nome}</div><div class="cv">R$ ${NUM.format(c.saldo)}</div><div class="ct ${up ? 'up' : down ? 'down' : ''}">${c.mov}</div>`;
+  $('contas').appendChild(d);
+});
+
+/* ---------- Contadores animados ---------- */
+document.querySelectorAll('[data-count]').forEach(el => {
+  const target = parseFloat(el.dataset.count);
+  const t0 = performance.now(), dur = 1100;
+  (function tick(t) {
+    const p = Math.min((t - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = BRL.format(target * e);
+    if (p < 1) requestAnimationFrame(tick);
+  })(t0);
+});
+
+recalc();
+</script>
+</body>
+</html>

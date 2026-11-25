@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Histórico & Inteligência · Condomínio Elit's Park</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070c1a; --card: rgba(15, 23, 42, .55); --border: rgba(148, 163, 184, .12);
+    --text: #e8edf6; --muted: #8a94a8;
+    --accent: #38bdf8; --green: #34d399; --red: #fb7185; --amber: #fbbf24; --violet: #a78bfa; --pink: #f472b6; --orange: #fb923c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background:
+      radial-gradient(1100px 600px at 15% -10%, rgba(56, 189, 248, .10), transparent 60%),
+      radial-gradient(900px 550px at 90% 0%, rgba(167, 139, 250, .08), transparent 55%),
+      var(--bg);
+    color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; padding: 40px 20px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; position: relative; }
+  h1 { font-family: 'Space Grotesk'; font-size: 34px; letter-spacing: -.5px; }
+  .eyebrow { color: var(--accent); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; }
+  .sub { color: var(--muted); margin-top: 8px; font-size: 14px; }
+  header { margin-bottom: 30px; }
+
+  .topnav { position: absolute; top: 40px; right: 20px; display: flex; gap: 10px; align-items: center; }
+  .topnav a, .topnav .on { font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 10px; text-decoration: none; }
+  .topnav .on { color: #7dd3fc; background: rgba(56, 189, 248, .1); border: 1px solid rgba(56, 189, 248, .3); }
+  .topnav a { color: var(--muted); border: 1px solid var(--border); }
+  .topnav a:hover { color: var(--text); border-color: rgba(56, 189, 248, .4); }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+  .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px 22px; backdrop-filter: blur(8px); }
+  .kpi .lbl { color: var(--muted); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; }
+  .kpi .val { font-family: 'Space Grotesk'; font-size: 27px; margin-top: 8px; }
+  .kpi .sub2 { font-size: 12.5px; margin-top: 5px; }
+  .up { color: var(--red); } .down { color: var(--green); } .mut { color: var(--muted); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 22px; padding: 26px 28px; backdrop-filter: blur(8px); margin-bottom: 26px; }
+  .card h2 { font-family: 'Space Grotesk'; font-size: 20px; margin-bottom: 6px; }
+  .card .desc { color: var(--muted); font-size: 13.5px; margin-bottom: 18px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+
+  .stackrow { margin-bottom: 16px; }
+  .stackrow .top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  .stackrow .bar { display: flex; height: 26px; border-radius: 9px; overflow: hidden; gap: 1.5px; }
+  .stackrow .bar div { height: 100%; cursor: default; transition: filter .15s; }
+  .stackrow .bar div:hover { filter: brightness(1.35); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+
+  .ins { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 760px) { .ins { grid-template-columns: 1fr; } }
+  .ins div { background: rgba(2, 6, 23, .5); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; font-size: 13.5px; line-height: 1.5; color: #c7d0e2; }
+  .ins b { color: #7dd3fc; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: right; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th:first-child, td:first-child { text-align: left; }
+  td { text-align: right; padding: 12px; border-bottom: 1px solid rgba(148, 163, 184, .06); }
+  tr:hover td { background: rgba(56, 189, 248, .04); }
+  td a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  td a:hover { text-decoration: underline; }
+  .res-neg { color: var(--red); } .res-pos { color: var(--green); }
+
+  footer { margin-top: 40px; text-align: center; color: #5b6680; font-size: 12px; }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a href="index.html">← Mês</a>
+  <span class="on">Histórico</span>
+</nav>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Condomínio Elit's Park · Piracicaba/SP</div>
+    <h1>Histórico &amp; inteligência de dados</h1>
+    <div class="sub" id="sub"></div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>💧 Água por unidade</h2>
+    <div class="desc">Quanto cada unidade pagou de água por mês (conta total ÷ <span id="unid"></span> unidades, rateio por fração ideal). A linha abaixo do mês mostra o total da conta.</div>
+    <div id="chAgua"></div>
+  </div>
+
+  <div class="two">
+    <div class="card" style="margin-bottom:0">
+      <h2>Receitas × despesas</h2>
+      <div class="desc">Nome do mês em <b style="color:#34d399">verde</b> = superávit, <b style="color:#fb7185">vermelho</b> = déficit. Passe o mouse nos pontos.</div>
+      <div id="chRecDesp"></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <h2>Inadimplência</h2>
+      <div class="desc">Em aberto por mês (taxa + extras). Nº de aptos no tooltip.</div>
+      <div id="chInad"></div>
+    </div>
+  </div>
+  <div style="height:26px"></div>
+
+  <div class="card">
+    <h2>Composição das despesas</h2>
+    <div class="desc">Barras proporcionais ao total gasto em cada mês — dá para comparar tamanho e mix.</div>
+    <div id="stackDesp"></div>
+    <div class="legend" id="legDesp"></div>
+  </div>
+
+  <div class="card">
+    <h2>🧠 Insights automáticos</h2>
+    <div class="desc">Gerados a partir dos meses registrados no banco.</div>
+    <div class="ins" id="insights"></div>
+  </div>
+
+  <div class="card">
+    <h2>Detalhe por mês</h2>
+    <table id="tbl"><thead><tr>
+      <th>Mês</th><th>Receitas</th><th>Despesas</th><th>Resultado</th>
+      <th>Água</th><th>Água/unid</th><th>% rateio</th><th>Inadimplência</th><th></th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <footer>Fonte: balancetes Condomínio21 · dados em <code>balancetes.db</code> · atualização mensal via <code>extrair.py</code></footer>
+</div>
+
+<div id="tooltip" style="position:fixed;pointer-events:none;background:#0d1424;border:1px solid rgba(56,189,248,.35);border-radius:10px;padding:9px 13px;font-size:12.5px;opacity:0;transition:opacity .12s;z-index:99;box-shadow:0 12px 32px rgba(0,0,0,.55);max-width:300px"></div>
+
+<script src="dados.js"></script>
+<script>
+const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const pct1 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+const $ = id => document.getElementById(id);
+const DB = window.DADOS, UNID = DB.unidades;
+const keys = Object.keys(DB.meses).sort();
+const M = keys.map(k => DB.meses[k]);
+const rows = keys.map((k, i) => {
+  const d = M[i], t = d.totais;
+  const inad = (d.inadimplencia || []).reduce((s, x) => s + x.valor, 0);
+  return { k, label: d.mesLabel, curto: d.mesLabel.split('/')[0].slice(0, 3),
+           rec: t.receitas, desp: t.despesas, res: t.saldoMes,
+           agua: d.agua, aguaU: d.agua / UNID, pctR: d.agua / d.rateio * 100,
+           rateio: d.rateio, inad };
+});
+$('unid').textContent = UNID;
+
+/* ---------- tooltip ---------- */
+const tt = $('tooltip');
+function bindTips(root) {
+  root.querySelectorAll('[data-tip]').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      tt.innerHTML = el.dataset.tip; tt.style.opacity = 1;
+      tt.style.left = (e.clientX + 14) + 'px'; tt.style.top = (e.clientY - 10) + 'px';
+    });
+    el.addEventListener('mouseleave', () => tt.style.opacity = 0);
+  });
+}
+
+/* ---------- gráfico de barras verticais ---------- */
+function chartV(el, groups, fmt) {
+  const W = Math.max(el.clientWidth, 420), H = 270, pb = 52, pt = 30;
+  const max = Math.max(...groups.flatMap(g => g.bars.map(b => b.v))) * 1.18;
+  const slot = W / groups.length, bw = Math.min(slot * .58 / groups[0].bars.length, 70);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  for (let i = 0; i <= 4; i++) {
+    const y = pt + (H - pb - pt) * i / 4;
+    s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="rgba(148,163,184,.09)"/>`;
+  }
+  groups.forEach((g, i) => {
+    const x0 = slot * i + slot / 2, w = bw * g.bars.length + 10 * (g.bars.length - 1);
+    let x = x0 - w / 2;
+    g.bars.forEach(b => {
+      const h = (H - pb - pt) * b.v / max, y = H - pb - h;
+      s += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="6" fill="${b.cor}" data-tip="${b.tip}"><title>${b.tip}</title></rect>`;
+      s += `<text x="${x + bw / 2}" y="${y - 7}" text-anchor="middle" fill="#aeb9cf" font-size="11.5" font-weight="600">${fmt ? fmt(b.v) : ''}</text>`;
+      x += bw + 10;
+    });
+    s += `<text x="${x0}" y="${H - pb + 19}" text-anchor="middle" fill="#e8edf6" font-size="12.5" font-weight="600">${g.label}</text>`;
+    if (g.sub) s += `<text x="${x0}" y="${H - pb + 37}" text-anchor="middle" fill="${g.subCor || '#5b6680'}" font-size="11">${g.sub}</text>`;
+  });
+  el.innerHTML = s + '</svg>';
+  bindTips(el);
+}
+const fmtK = v => 'R$ ' + (v >= 1000 ? (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k' : Math.round(v));
+
+/* ---------- gráfico de linhas ---------- */
+const niceCeil = v => {
+  const p = Math.pow(10, Math.floor(Math.log10(v || 1)));
+  const m = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(m => v / p <= m);
+  return m * p;
+};
+function chartL(el, cats, series, fmt) {
+  const W = Math.max(el.clientWidth, 420), H = 270, pb = 36, pt = 30, pl = 48, pr = 14;
+  const real = Math.max(...series.flatMap(s => s.pts.map(p => p.v)));
+  const max = niceCeil(real * 1.15);
+  const n = cats.length;
+  const px = i => pl + (W - pl - pr) * (n === 1 ? .5 : i / (n - 1));
+  const py = v => pt + (H - pb - pt) * (1 - v / max);
+  const Y0 = H - pb;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+  for (let i = 0; i <= 4; i++) {
+    const gy = pt + (Y0 - pt) * i / 4;
+    s += `<line x1="${pl}" y1="${gy}" x2="${W - pr}" y2="${gy}" stroke="rgba(148,163,184,.09)"/>`;
+    s += `<text x="${pl - 7}" y="${gy + 3.5}" text-anchor="end" fill="#5b6680" font-size="10">${fmtK(max * (4 - i) / 4)}</text>`;
+  }
+  series.forEach(sr => {
+    const pts = sr.pts.map((p, i) => `${px(i).toFixed(1)},${py(p.v).toFixed(1)}`);
+    if (sr.fill !== false)
+      s += `<path d="M${px(0)},${Y0} L${pts.join(' L')} L${px(n - 1)},${Y0} Z" fill="${sr.cor.replace(/[\d.]+\)$/, '.07)')}"/>`;
+    s += `<path d="M${pts.join(' L')}" fill="none" stroke="${sr.cor}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    sr.pts.forEach((p, i) => {
+      s += `<circle cx="${px(i)}" cy="${py(p.v)}" r="4.5" fill="${sr.cor}" stroke="#0d1424" stroke-width="2" data-tip="${p.tip}"/>`;
+      if (fmt) s += `<text x="${px(i)}" y="${py(p.v) - 9}" text-anchor="middle" fill="#aeb9cf" font-size="10.5" font-weight="600">${fmt(p.v)}</text>`;
+    });
+  });
+  cats.forEach((c, i) => {
+    s += `<text x="${px(i)}" y="${H - pb + 20}" text-anchor="middle" fill="${c.lblCor || '#e8edf6'}" font-size="12.5" font-weight="600">${c.label}</text>`;
+  });
+  s += '</svg>';
+  const leg = series.filter(x => x.nome).map(x => `<span><i style="background:${x.cor}"></i>${x.nome}</span>`).join('');
+  el.innerHTML = s + (leg ? `<div class="legend" style="margin-top:2px">${leg}</div>` : '');
+  bindTips(el);
+}
+
+/* ---------- 1 · água por unidade ---------- */
+chartV($('chAgua'), rows.map(r => ({
+  label: r.curto,
+  sub: 'total ' + BRL.format(r.agua),
+  bars: [{ v: r.aguaU, cor: 'rgba(56,189,248,.85)',
+           tip: `<b>${r.label}</b><br>Água/unidade: <b>${BRL.format(r.aguaU)}</b><br>Conta: ${BRL.format(r.agua)}<br>${pct1(r.pctR)} do rateio` }]
+})), v => 'R$ ' + Math.round(v));
+
+/* ---------- 2 · receitas × despesas ---------- */
+const tipRD = r => `<b>${r.label}</b><br>Receitas ${BRL.format(r.rec)}<br>Despesas ${BRL.format(r.desp)}<br>Resultado <b>${r.res >= 0 ? '+' : '−'} ${BRL.format(Math.abs(r.res))}</b>`;
+chartL($('chRecDesp'),
+  rows.map(r => ({ label: r.curto, lblCor: r.res >= 0 ? '#34d399' : '#fb7185' })),
+  [
+    { nome: 'Receitas', cor: 'rgba(52,211,153,.85)', pts: rows.map(r => ({ v: r.rec, tip: tipRD(r) })) },
+    { nome: 'Despesas', cor: 'rgba(251,113,133,.85)', pts: rows.map(r => ({ v: r.desp, tip: tipRD(r) })) }
+  ]);
+
+/* ---------- 3 · inadimplência ---------- */
+chartL($('chInad'),
+  rows.map(r => ({ label: r.curto })),
+  [{ cor: 'rgba(251,191,36,.9)', pts: rows.map((r, i) => ({
+      v: r.inad,
+      tip: `<b>${r.label}</b><br>` + M[i].inadimplencia.map(x => `${x.tipo}: ${BRL.format(x.valor)} (${x.aptos} aptos)`).join('<br>') })) }],
+  fmtK);
+
+/* ---------- 4 · composição das despesas ---------- */
+const gmap = {};
+M.forEach(d => (d.grupos || []).forEach(g => { if (!gmap[g.key]) gmap[g.key] = { nome: g.nome, cor: g.cor }; }));
+const maxDesp = Math.max(...rows.map(r => r.desp));
+$('stackDesp').innerHTML = rows.map((r, i) => {
+  const segs = (M[i].grupos || []).map(g => {
+    const meta = gmap[g.key];
+    return `<div style="width:${g.valor / maxDesp * 100}%;background:${meta.cor}" data-tip="${meta.nome} · ${BRL.format(g.valor)} (${pct1(g.valor / r.desp * 100)})"></div>`;
+  }).join('');
+  return `<div class="stackrow"><div class="top"><span style="color:#e8edf6;font-weight:600">${r.label}</span><span>${BRL.format(r.desp)}</span></div><div class="bar">${segs}</div></div>`;
+}).join('');
+$('legDesp').innerHTML = Object.values(gmap).map(g => `<span><i style="background:${g.cor}"></i>${g.nome}</span>`).join('');
+bindTips($('stackDesp'));
+
+/* ---------- 5 · KPIs ---------- */
+const primeiro = rows[0], ultimo = rows[rows.length - 1];
+const mediaAgua = rows.reduce((s, r) => s + r.aguaU, 0) / rows.length;
+const varAgua = (ultimo.aguaU / primeiro.aguaU - 1) * 100;
+const resAcum = rows.reduce((s, r) => s + r.res, 0);
+$('kpis').innerHTML = `
+  <div class="kpi"><div class="lbl">Meses registrados</div><div class="val">${rows.length}</div>
+    <div class="sub2 mut">${primeiro.label} → ${ultimo.label}</div></div>
+  <div class="kpi"><div class="lbl">Água média / unidade</div><div class="val">${BRL.format(mediaAgua)}</div>
+    <div class="sub2 mut">média do período</div></div>
+  <div class="kpi"><div class="lbl">Água/unid: ${primeiro.curto} → ${ultimo.curto}</div>
+    <div class="val ${varAgua > 0 ? 'up' : 'down'}">${varAgua > 0 ? '+' : ''}${varAgua.toFixed(1)}%</div>
+    <div class="sub2 mut">${BRL.format(primeiro.aguaU)} → ${BRL.format(ultimo.aguaU)}</div></div>
+  <div class="kpi"><div class="lbl">Resultado acumulado</div>
+    <div class="val ${resAcum < 0 ? 'up' : 'down'}">${resAcum < 0 ? '−' : '+'} ${BRL.format(Math.abs(resAcum))}</div>
+    <div class="sub2 mut">${resAcum < 0 ? 'déficit' : 'superávit'} no período</div></div>`;
+$('sub').textContent = `${rows.length} balancetes · ${primeiro.label} a ${ultimo.label} · ${UNID} unidades`;
+
+/* ---------- 6 · insights ---------- */
+const ins = [];
+if (rows.length >= 2) {
+  ins.push(`💧 <b>Água/unidade</b> variou de <b>${BRL.format(primeiro.aguaU)}</b> (${primeiro.curto}) a <b>${BRL.format(ultimo.aguaU)}</b> (${ultimo.curto}): <b>${varAgua > 0 ? '+' : ''}${varAgua.toFixed(1)}%</b>. A faixa do período foi ${BRL.format(Math.min(...rows.map(r => r.aguaU)))}–${BRL.format(Math.max(...rows.map(r => r.aguaU)))}.`);
+  ins.push(`📊 <b>Peso da água no rateio</b>: ${rows.map(r => `${r.curto} ${pct1(r.pctR)}`).join(' → ')}.`);
+  const rts = new Set(rows.map(r => r.rateio));
+  ins.push(rts.size === 1
+    ? `💠 <b>Rateio ordinário fixo</b> em ${BRL.format(primeiro.rateio)} nos ${rows.length} meses — a variação do boleto veio só dos resultados/extras de cada mês.`
+    : `💠 <b>Rateio variou</b>: ${rows.map(r => `${r.curto} ${BRL.format(r.rateio)}`).join(' · ')}.`);
+  ins.push(`📈 <b>Inadimplência</b>: ${rows.map(r => `${r.curto} ${BRL.format(r.inad)}`).join(' → ')} (${((ultimo.inad / primeiro.inad - 1) * 100).toFixed(1)}%).`);
+  const adiant = [], consumo = [];
+  keys.forEach((k, i) => { const s = M[i].semae; if (s) (s.sinal === '-' ? consumo : adiant).push({ m: rows[i].curto, v: s.valor }); });
+  if (adiant.length || consumo.length) {
+    let txt = '🚰 <b>Saga SEMAE</b>: ';
+    if (adiant.length) txt += `adiantamentos de ${adiant.map(s => `${s.m} ${BRL.format(s.v)}`).join(' · ')} (total <b>${BRL.format(adiant.reduce((a, s) => a + s.v, 0))}</b>)`;
+    if (consumo.length) txt += `${adiant.length ? '; depois ' : ''}abatidos da fatura real em ${consumo.map(s => `${s.m} ${BRL.format(s.v)}`).join(' · ')}`;
+    ins.push(txt + ' — meses sem fatura aparecem zerados/baixos no gráfico, e o mês da conta acumulada aparece inflado.');
+  }
+  let top = { n: '', v: 0, m: '' };
+  M.forEach((d, i) => d.grupos.forEach(g => g.itens.forEach(([n, v]) => { if (v > top.v) top = { n, v, m: rows[i].curto }; })));
+  ins.push(`🔝 <b>Maior despesa individual</b> do período: ${top.n.toLowerCase()} — <b>${BRL.format(top.v)}</b> em ${top.m}.`);
+  const cnt = {};
+  M.forEach(d => d.grupos.forEach(g => g.itens.forEach(([n]) => cnt[n] = (cnt[n] || 0) + 1)));
+  const pont = Object.entries(cnt).filter(([, c]) => c === 1).map(([n]) => n.toLowerCase());
+  if (pont.length) ins.push(`📌 <b>Despesas pontuais</b> (apareceram em 1 mês): ${pont.slice(0, 5).join(', ')}${pont.length > 5 ? '…' : ''}.`);
+  let gv = { k: '', amp: 0 };
+  Object.keys(gmap).forEach(k => {
+    const vs = M.map(d => { const g = d.grupos.find(x => x.key === k); return g ? g.valor : 0; });
+    const amp = Math.max(...vs) - Math.min(...vs);
+    if (amp > gv.amp) gv = { k, amp };
+  });
+  if (gv.k) ins.push(`🌀 <b>Grupo que mais oscilou</b>: ${gmap[gv.k].nome} — amplitude de ${BRL.format(gv.amp)} entre os meses.`);
+} else {
+  ins.push('Importe mais balancetes para gerar comparativos e tendências.');
+}
+$('insights').innerHTML = ins.map(x => `<div>${x}</div>`).join('');
+
+/* ---------- 7 · tabela ---------- */
+$('tbl').querySelector('tbody').innerHTML = rows.map(r => `<tr>
+  <td><b>${r.label}</b></td>
+  <td>${BRL.format(r.rec)}</td><td>${BRL.format(r.desp)}</td>
+  <td class="${r.res < 0 ? 'res-neg' : 'res-pos'}">${r.res < 0 ? '−' : '+'} ${BRL.format(Math.abs(r.res))}</td>
+  <td>${BRL.format(r.agua)}</td><td><b>${BRL.format(r.aguaU)}</b></td>
+  <td>${pct1(r.pctR)}</td><td>${BRL.format(r.inad)}</td>
+  <td><a href="index.html?mes=${r.k}">ver →</a></td></tr>`).join('');
+</script>
+</body>
+</html>

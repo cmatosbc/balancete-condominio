@@ -1,0 +1,43 @@
+name: Atualizar balancetes
+
+# Roda quando um PDF novo entra em pdfs/ (inclui upload pela interface web)
+# ou manualmente em Actions → "Atualizar balancetes" → Run workflow.
+on:
+  push:
+    paths: ['pdfs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: balancetes
+  cancel-in-progress: false
+
+jobs:
+  extrair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar poppler-utils (pdftotext)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Extrair PDFs e regenerar dados.js
+        run: python3 extrair.py pdfs
+
+      - name: Commit dos dados atualizados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dados.js balancetes.db pdfs/
+          if git diff --staged --quiet; then
+            echo "Nada mudou — nenhum commit necessário."
+          else
+            git commit -m "chore: atualiza dados dos balancetes"
+            git push
+          fi

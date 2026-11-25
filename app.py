@@ -19,6 +19,7 @@ from pathlib import Path
 
 from flask import (Flask, redirect, render_template_string, request,
                    send_from_directory, session)
+from markupsafe import escape
 
 import extrair
 
@@ -64,9 +65,12 @@ PAGE = """<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
           font-weight:600;margin:12px 0 6px}
  h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 6px}
  .mut{color:#8a94a8;font-size:13px;margin-bottom:20px}
- input[type=password],input[type=file]{width:100%;padding:12px 14px;border-radius:10px;
+ input[type=password],input[type=file],input[type=text],select,textarea{
+  width:100%;padding:12px 14px;border-radius:10px;
   border:1px solid rgba(148,163,184,.22);background:rgba(2,6,23,.65);color:#e8edf6;
-  font-size:15px;outline:none;box-sizing:border-box}
+  font-size:15px;outline:none;box-sizing:border-box;font-family:inherit;margin-bottom:12px}
+ textarea{min-height:110px;resize:vertical}
+ label{display:block;color:#8a94a8;font-size:12px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px}
  button{margin-top:16px;width:100%;padding:12px;border-radius:10px;border:none;
   background:linear-gradient(135deg,#38bdf8,#818cf8);color:#0b1220;font-weight:700;
   font-size:14px;cursor:pointer}
@@ -182,6 +186,7 @@ def admin():
              f'<button type="submit">Importar</button></form>'
              f'<table><tr><th>Mês</th><th>Chave</th><th>Água</th><th></th></tr>{linhas}</table>'
              f'<div class="links"><a href="/">← Dashboard</a>'
+             f'<a href="/admin/ocorrencias">Ocorrências</a>'
              f'<a href="/historico.html">Histórico</a><a href="/logout">Sair</a></div></div>')
 
 
@@ -214,6 +219,91 @@ def upload():
 @need_admin
 def pdf(nome):
     return send_from_directory(extrair.PDFS, nome)
+
+
+# ---------------- livro de ocorrências ----------------
+
+CATEGORIAS = ['Barulho', 'Vazamento / infiltração', 'Manutenção', 'Limpeza',
+              'Segurança', 'Elevador', 'Estacionamento / garagem', 'Animais', 'Outro']
+
+
+def odb():
+    conn = extrair.db_conn()
+    conn.execute("""CREATE TABLE IF NOT EXISTS ocorrencias(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        criado_em TEXT DEFAULT (datetime('now','localtime')),
+        unidade TEXT, nome TEXT, categoria TEXT, texto TEXT NOT NULL)""")
+    return conn
+
+
+@app.route('/ocorrencia', methods=['GET', 'POST'])
+@need_login
+def ocorrencia():
+    """Qualquer papel logado pode registrar; só admin vê a lista."""
+    if request.method == 'POST':
+        texto = request.form.get('texto', '').strip()
+        if not texto:
+            return redirect('/ocorrencia?erro=' + urllib.parse.quote(
+                'Descreva a ocorrência antes de enviar'))
+        conn = odb()
+        conn.execute(
+            'INSERT INTO ocorrencias(unidade, nome, categoria, texto) VALUES (?,?,?,?)',
+            (request.form.get('unidade', '').strip() or None,
+             request.form.get('nome', '').strip() or None,
+             request.form.get('categoria') if request.form.get('categoria') in CATEGORIAS else 'Outro',
+             texto))
+        conn.commit()
+        return redirect('/ocorrencia?ok=1')
+
+    ok = '<p class="ok">✓ Ocorrência registrada — a administração foi notificada.</p>' \
+        if request.args.get('ok') else ''
+    erro = f'<p class="bad">⚠ {escape(request.args.get("erro", ""))}</p>' \
+        if request.args.get('erro') else ''
+    cats = ''.join(f'<option>{c}</option>' for c in CATEGORIAS)
+    return render_template_string(
+        PAGE, titulo='Ocorrência',
+        body=f'<div class="card"><div class="eyebrow">Livro de ocorrências</div>'
+             f'<h1>Registrar ocorrência</h1>'
+             f'<p class="mut">Vai direto para a administração — outros condôminos não veem.</p>'
+             f'{ok}{erro}'
+             f'<form method="post">'
+             f'<label>Unidade (opcional)</label>'
+             f'<input type="text" name="unidade" placeholder="Ex.: A3-11">'
+             f'<label>Seu nome (opcional)</label>'
+             f'<input type="text" name="nome" placeholder="Anônimo se vazio">'
+             f'<label>Categoria</label><select name="categoria">{cats}</select>'
+             f'<label>Ocorrência</label>'
+             f'<textarea name="texto" required '
+             f'placeholder="Descreva o que aconteceu, onde e quando"></textarea>'
+             f'<button type="submit">Registrar</button></form>'
+             f'<div class="links"><a href="/">← Dashboard</a>'
+             f'<a href="/logout">Sair</a></div></div>')
+
+
+@app.get('/admin/ocorrencias')
+@need_admin
+def admin_ocorrencias():
+    rows = odb().execute(
+        'SELECT id, criado_em, unidade, nome, categoria, texto '
+        'FROM ocorrencias ORDER BY id DESC').fetchall()
+    linhas = ''.join(
+        f'<tr><td style="white-space:nowrap">{escape(r[1])}</td>'
+        f'<td>{escape(r[2] or "—")}</td><td>{escape(r[3] or "—")}</td>'
+        f'<td>{escape(r[4] or "—")}</td><td>{escape(r[5])}</td></tr>'
+        for r in rows)
+    if not rows:
+        linhas = '<tr><td colspan="5" style="color:#8a94a8;text-align:center">' \
+                 'Nenhuma ocorrência registrada ainda.</td></tr>'
+    return render_template_string(
+        PAGE, titulo='Ocorrências',
+        body=f'<div class="card wide"><div class="eyebrow">Administração</div>'
+             f'<h1>Livro de ocorrências</h1>'
+             f'<p class="mut">{len(rows)} registro(s) — visível somente para admin.</p>'
+             f'<div style="overflow-x:auto"><table>'
+             f'<tr><th>Data</th><th>Unidade</th><th>Nome</th><th>Categoria</th>'
+             f'<th style="text-align:left">Texto</th></tr>{linhas}</table></div>'
+             f'<div class="links"><a href="/admin">← Admin</a>'
+             f'<a href="/">Dashboard</a><a href="/logout">Sair</a></div></div>')
 
 
 @app.get('/dados.js')

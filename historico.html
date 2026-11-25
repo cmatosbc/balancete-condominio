@@ -71,12 +71,24 @@
   .res-neg { color: var(--red); } .res-pos { color: var(--green); }
 
   footer { margin-top: 40px; text-align: center; color: #5b6680; font-size: 12px; }
+
+  @media (max-width: 760px) {
+    body { padding: 0 14px 70px; }
+    .topnav { position: sticky; top: 0; right: 0; z-index: 60; flex-wrap: wrap;
+      justify-content: center; gap: 6px; margin: 0 -14px 18px; padding: 10px;
+      background: rgba(7,12,26,.94); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); }
+    .topnav a, .topnav .on { padding: 6px 12px; font-size: 12px; }
+    .card { padding: 18px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+  }
 </style>
 </head>
 <body>
 <nav class="topnav">
   <a href="index.html">← Mês</a>
   <span class="on">Histórico</span>
+  <a href="/ocorrencia" id="navOcorr" style="display:none">Ocorrência</a>
   <a href="/admin" id="navAdmin" style="display:none">Admin</a>
   <a href="#" title="Sair" onclick="if(document.cookie.indexOf('cond_app=1')>=0){location.href='/logout'}else{localStorage.removeItem('cond_acesso_v1');location.reload()};return false">🔒</a>
 </nav>
@@ -125,10 +137,12 @@
 
   <div class="card">
     <h2>Detalhe por mês</h2>
+    <div style="overflow-x:auto">
     <table id="tbl"><thead><tr>
       <th>Mês</th><th>Receitas</th><th>Despesas</th><th>Resultado</th>
       <th>Água</th><th>Água/unid</th><th>% rateio</th><th>Inadimplência</th><th></th>
     </tr></thead><tbody></tbody></table>
+    </div>
   </div>
 
   <footer>Fonte: balancetes Condomínio21 · dados em <code>balancetes.db</code> · atualização mensal via <code>extrair.py</code></footer>
@@ -141,6 +155,7 @@
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const pct1 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 const $ = id => document.getElementById(id);
+if (document.cookie.indexOf('cond_app=1') >= 0) $('navOcorr').style.display = '';
 if (document.cookie.indexOf('cond_role=admin') >= 0) $('navAdmin').style.display = '';
 const DB = window.DADOS, UNID = DB.unidades;
 const keys = Object.keys(DB.meses).sort();

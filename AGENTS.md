@@ -21,6 +21,8 @@ Condomínio21 / Brancalion).
 - `app.py` — servidor Flask (Docker): login por senha com 2 níveis
   (`ADMIN_PASSWORD`/`MORADOR_PASSWORD` no env), `/admin` + `POST /upload`
   só para admin, `SECRET_KEY` persistida em `DATA_DIR/.secret_key`.
+  Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
+  `ocorrencias` no SQLite → `/admin/ocorrencias` (só admin lista).
 - `Dockerfile` / `entrypoint.sh` / `docker-compose.yml` — imagem
   python+poppler+gunicorn; volume `/data`; PDFs de `pdfs/` semeiam o banco.
 - `data/` — artefatos de runtime do container (gitignored).

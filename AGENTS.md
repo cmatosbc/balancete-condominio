@@ -14,6 +14,9 @@ Condomínio21 / Brancalion).
   regenera `dados.js`
 - `balancetes.db` — SQLite; tabela `meses` (chave `ano_mes` + JSON completo)
 - `pdfs/` — balancetes originais (`AAAA-MM.pdf`)
+- `senha.js` — portão de senha VISUAL (não é segurança real; repo é público).
+  Senha: `elitspark2026` (hash SHA-256 em `EXPECTED`).
+  Trocar: `echo -n "NOVA" | sha256sum` → colar em `senha.js` → commit.
 - `.github/workflows/atualizar.yml` — CI: push em `pdfs/` → extrai → commita
 - `AGENTS.md` — este arquivo
 

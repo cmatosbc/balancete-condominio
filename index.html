@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<script src="senha.js"></script>
 <title>Condomínio Elit's Park — Balancete</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -194,6 +196,7 @@
   <span class="on">Mês</span>
   <a href="historico.html">Histórico →</a>
   <select id="mesSel"></select>
+  <a href="#" title="Sair" onclick="localStorage.removeItem('cond_acesso_v1');location.reload();return false">🔒</a>
 </nav>
 <div class="wrap">
 

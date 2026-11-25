@@ -6,6 +6,10 @@ Brancalion).
 
 **Site:** https://cmatosbc.github.io/balancete-condominio/
 
+> 🔒 O site tem um portão de senha (proteção visual): `elitspark2026`.
+> Para trocar: `echo -n "NOVASENHA" | sha256sum`, cole o hash em
+> `senha.js` (`EXPECTED`) e faça commit.
+
 ## Como atualizar (mensal)
 
 Basta colocar o PDF do balancete na pasta `pdfs/` — o resto é automático:

@@ -42,3 +42,17 @@ e comita — o GitHub Pages republica o site em ~1 minuto.
 python3 -m http.server 8765   # ou abra os HTMLs direto no navegador
 python3 extrair.py --listar   # meses no banco
 ```
+
+## Docker
+
+Imagem mínima (nginx + estáticos, ~62 MB):
+
+```bash
+docker compose up -d --build   # sobe em http://localhost:8080
+docker compose down            # para
+```
+
+Ou sem compose: `docker build -t balancete . && docker run -d -p 8080:80 balancete`
+
+> O `dados.js` vai congelado na imagem — depois de importar um mês novo,
+> rebuildar (`docker compose up -d --build`) para o container refletir.

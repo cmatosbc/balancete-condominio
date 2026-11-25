@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+__pycache__
+*.pyc
+pdfs
+balancetes.db
+extrair.py
+*.md
+docker-compose.yml
+Dockerfile
+.dockerignore

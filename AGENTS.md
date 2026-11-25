@@ -12,7 +12,8 @@ Condomínio21 / Brancalion).
 - `dados.js` — gerado pelo `extrair.py` (`window.DADOS = {unidades, meses: {...}}`)
 - `extrair.py` — parseia o PDF, grava o mês no banco, arquiva em `pdfs/`,
   regenera `dados.js`
-- `balancetes.db` — SQLite; tabela `meses` (chave `ano_mes` + JSON completo)
+- `balancetes.db` — SQLite; tabela `meses` (chave `ano_mes` + JSON completo).
+  Cache local/CI — não é versionado (regenerável com `extrair.py pdfs`)
 - `pdfs/` — balancetes originais (`AAAA-MM.pdf`)
 - `senha.js` — portão de senha VISUAL (não é segurança real; repo é público).
   Senha: `elitspark2026` (hash SHA-256 em `EXPECTED`).

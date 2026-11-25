@@ -19,7 +19,6 @@ from pathlib import Path
 
 from flask import (Flask, redirect, render_template_string, request,
                    send_from_directory, session)
-from markupsafe import escape
 
 import extrair
 
@@ -166,94 +165,170 @@ def index():
 ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Admin · Elit's Park</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
- :root{--border:rgba(148,163,184,.14);--muted:#8a94a8}
+ :root{--bg:#080d19;--panel:rgba(17,26,45,.78);--panel2:#0c1424;
+  --border:rgba(148,163,184,.13);--muted:#91a0b8;--text:#edf3fc;
+  --cyan:#55d5d0;--blue:#76a9ff;--amber:#f4bd6a;--rose:#ff8192}
  *{margin:0;padding:0;box-sizing:border-box}
- body{background:radial-gradient(1100px 600px at 15% -10%,rgba(56,189,248,.10),transparent 60%),#070c1a;
-      color:#e8edf6;font-family:Inter,system-ui,sans-serif;min-height:100vh;padding:36px 20px 60px}
- .wrap{max-width:980px;margin:0 auto}
- .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:26px}
- .links{display:flex;gap:8px;flex-wrap:wrap}
- .links a{font-size:13px;font-weight:600;color:var(--muted);padding:7px 13px;border-radius:9px;
-  border:1px solid var(--border);text-decoration:none}
- .links a:hover{color:#e8edf6;border-color:rgba(56,189,248,.4)}
- .links a.home{color:#7dd3fc;border-color:rgba(56,189,248,.35)}
- .eyebrow{color:#7dd3fc;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:600;margin-bottom:6px}
- h1{font-family:'Space Grotesk',sans-serif;font-size:26px}
- .sub{color:var(--muted);font-size:13.5px;margin-top:4px}
- .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:22px 0 20px}
- .kpi{background:rgba(15,23,42,.6);border:1px solid var(--border);border-radius:16px;padding:16px 18px;backdrop-filter:blur(8px)}
- .kpi .l{color:var(--muted);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:600}
- .kpi .v{font-family:'Space Grotesk';font-size:23px;margin-top:7px}
- .grid{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;margin-bottom:18px}
- @media(max-width:860px){.grid{grid-template-columns:1fr}}
- .card{background:rgba(15,23,42,.6);border:1px solid var(--border);border-radius:20px;
-       padding:22px 24px;backdrop-filter:blur(8px)}
- .card h2{font-family:'Space Grotesk';font-size:18px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
- .card .desc{color:var(--muted);font-size:13px;margin-bottom:16px}
- .cnt{background:rgba(56,189,248,.15);color:#7dd3fc;font-size:12px;font-weight:700;
-      padding:2px 10px;border-radius:999px}
- #drop{border:1.5px dashed rgba(148,163,184,.3);border-radius:14px;padding:30px 16px;text-align:center;
-   color:var(--muted);font-size:13.5px;cursor:pointer;transition:.15s;background:rgba(2,6,23,.35)}
- #drop:hover,#drop.on{border-color:#38bdf8;color:#7dd3fc;background:rgba(56,189,248,.06)}
- #drop b{color:#e8edf6;font-weight:600}
- #upStatus{margin-top:12px;font-size:13px;min-height:18px}
- .proc{color:#7dd3fc}
- .ok{color:#34d399}.bad{color:#fb7185}
- .oclist{max-height:330px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
- .oc{background:rgba(2,6,23,.5);border:1px solid var(--border);border-radius:12px;padding:11px 14px}
- .oc .top{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted);margin-bottom:5px;flex-wrap:wrap}
- .oc .cat{color:#7dd3fc;font-weight:600}
- .oc .quem{color:#aeb9cf}
- .oc .txt{font-size:13.5px;line-height:1.5;color:#d7deeb}
- table{width:100%;border-collapse:collapse;font-size:13.5px}
- th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;text-align:right;
-    padding:8px 10px;border-bottom:1px solid var(--border)}
+ body{min-height:100vh;padding:34px 24px 70px;color:var(--text);font-family:'DM Sans',sans-serif;
+  background:radial-gradient(900px 500px at 8% -8%,rgba(85,213,208,.13),transparent 63%),
+   radial-gradient(700px 430px at 100% 5%,rgba(118,169,255,.10),transparent 65%),
+   linear-gradient(145deg,#080d19,#0a1020 58%,#080d19)}
+ .wrap{max-width:1180px;margin:0 auto}
+ .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
+ .brand{display:flex;align-items:center;gap:14px}
+ .mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;
+  color:#07131a;background:linear-gradient(145deg,#83e5d4,#50c6c6);
+  box-shadow:0 8px 28px rgba(85,213,208,.18)}
+ .brand-copy{display:flex;flex-direction:column;gap:3px}
+ .eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
+ h1{font-family:'Space Grotesk',sans-serif;font-size:25px;letter-spacing:-.5px}
+ .links{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid var(--border);
+  border-radius:13px;background:rgba(12,20,36,.75)}
+ .links a{font-size:12.5px;font-weight:600;color:var(--muted);padding:9px 12px;
+  border-radius:9px;text-decoration:none;transition:.18s}
+ .links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+ .links a.home{color:#07131a;background:var(--cyan)}
+ .links a.exit{color:#ff9eaa}
+ .intro{display:flex;justify-content:space-between;align-items:end;gap:20px;margin:28px 0 18px}
+ .intro h2{font-family:'Space Grotesk';font-size:clamp(26px,3vw,36px);letter-spacing:-1px}
+ .intro p{color:var(--muted);font-size:14px;margin-top:6px}
+ .live{display:inline-flex;align-items:center;gap:8px;color:#b5c4d8;font-size:12px;
+  padding:8px 11px;border:1px solid var(--border);border-radius:999px;background:rgba(12,20,36,.6)}
+ .live i{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+ .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:18px}
+ .kpi{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(18,29,49,.9),rgba(12,20,36,.82));
+  border:1px solid var(--border);border-radius:17px;padding:17px 18px;min-height:103px}
+ .kpi:after{content:'';position:absolute;width:90px;height:90px;right:-35px;top:-45px;
+  border-radius:50%;background:rgba(85,213,208,.08);filter:blur(2px)}
+ .kpi .l{color:var(--muted);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;font-weight:700}
+ .kpi .v{font-family:'Space Grotesk';font-size:24px;letter-spacing:-.5px;margin-top:10px}
+ .kpi:nth-child(2) .v{color:#b7cbff}.kpi:nth-child(3) .v{color:var(--cyan)}
+ .grid{display:grid;grid-template-columns:minmax(320px,.88fr) minmax(0,1.12fr);gap:16px;margin-bottom:16px}
+ .card{background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
+  border:1px solid var(--border);border-radius:20px;padding:22px;box-shadow:0 15px 45px rgba(0,0,0,.13)}
+ .card-head{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:17px}
+ .card h3{font-family:'Space Grotesk';font-size:17px;letter-spacing:-.2px}
+ .desc{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:5px}
+ .cnt{background:rgba(85,213,208,.12);color:var(--cyan);font-size:11px;font-weight:700;
+  padding:5px 9px;border:1px solid rgba(85,213,208,.2);border-radius:999px;white-space:nowrap}
+ .dropzone{min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;border:1px dashed rgba(140,168,192,.36);border-radius:15px;padding:21px;
+  background:radial-gradient(240px 130px at 50% 25%,rgba(85,213,208,.08),transparent 80%),rgba(4,10,20,.38);
+  cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
+ .dropzone:hover,.dropzone.on{border-color:var(--cyan);background-color:rgba(85,213,208,.06);transform:translateY(-1px)}
+ .upload-icon{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;
+  background:rgba(85,213,208,.12);color:var(--cyan);margin-bottom:11px}
+ .drop-title{font-weight:700;font-size:14px}
+ .drop-hint{color:var(--muted);font-size:12px;margin-top:5px}
+ .choose{display:inline-flex;margin-top:13px;padding:8px 13px;border-radius:9px;
+  color:var(--cyan);font-size:12px;font-weight:700;border:1px solid rgba(85,213,208,.28);
+  background:rgba(85,213,208,.07)}
+ #fileInp{display:none}
+ #upStatus{display:none;margin-top:13px;padding:11px 12px;border-radius:10px;
+  font-size:12.5px;background:rgba(118,169,255,.08);color:#b7cbff}
+ #upStatus.show{display:block}
+ #upStatus.ok{color:#8be2c5;background:rgba(85,213,208,.09)}
+ #upStatus.bad{color:#ff9eaa;background:rgba(255,129,146,.09)}
+ .upload-note{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11.5px;margin-top:13px}
+ .upload-note span{color:var(--cyan)}
+ .tools{display:flex;gap:8px;margin-bottom:12px}
+ .search{width:100%;padding:9px 11px!important;margin:0!important;border-radius:10px!important;
+  background:rgba(4,10,20,.55)!important;font-size:12px!important}
+ .oclist{max-height:246px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:3px}
+ .oc{padding:11px 12px;border:1px solid rgba(148,163,184,.1);border-radius:12px;background:rgba(4,10,20,.35)}
+ .oc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+ .oc-cat{color:#a6c9ff;background:rgba(118,169,255,.1);padding:4px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
+ .oc-date{color:#718098;font-size:10.5px}
+ .oc-meta{color:#a5b2c6;font-size:11.5px;margin-bottom:4px}
+ .oc-txt{font-size:12.5px;line-height:1.5;color:#dce5f2;overflow-wrap:anywhere}
+ .empty{color:var(--muted);text-align:center;padding:32px 14px;font-size:13px}
+ .section{margin-top:16px}
+ .section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:13px}
+ .section-title h3{font-family:'Space Grotesk';font-size:18px}
+ .section-title p{color:var(--muted);font-size:12px;margin-top:4px}
+ .table-wrap{overflow:auto;border:1px solid rgba(148,163,184,.1);border-radius:13px}
+ table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+ th{color:#718098;font-size:9.5px;text-transform:uppercase;letter-spacing:1.2px;text-align:right;
+  padding:11px 13px;border-bottom:1px solid var(--border);background:rgba(4,10,20,.3)}
  th:first-child,td:first-child{text-align:left}
- td{text-align:right;padding:10px;border-bottom:1px solid rgba(148,163,184,.06)}
- td a{color:#38bdf8;text-decoration:none;font-weight:600}
+ td{text-align:right;padding:11px 13px;border-bottom:1px solid rgba(148,163,184,.06);color:#b7c3d5}
+ tbody tr:hover{background:rgba(85,213,208,.035)}
+ tbody tr:last-child td{border-bottom:0}
+ td a{color:var(--cyan);text-decoration:none;font-weight:700}
+ td a:hover{text-decoration:underline}
+ .month-tag{display:inline-flex;align-items:center;gap:7px;color:var(--text);font-weight:600}
+ .month-tag i{width:6px;height:6px;border-radius:50%;background:#53647b}
+ .month-tag.latest i{background:var(--cyan);box-shadow:0 0 9px rgba(85,213,208,.7)}
+ .footer-note{color:#66758b;font-size:11px;text-align:center;margin-top:18px}
  #toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,80px);opacity:0;transition:.25s;
-  background:#0d1424;border:1px solid rgba(56,189,248,.4);border-radius:12px;padding:12px 20px;
-  font-size:13.5px;box-shadow:0 14px 40px rgba(0,0,0,.6);z-index:99;max-width:90vw}
+  background:#101a2b;border:1px solid rgba(85,213,208,.4);border-radius:12px;padding:12px 18px;
+  font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.55);z-index:99;max-width:90vw}
  #toast.show{transform:translate(-50%,0);opacity:1}
- #toast.bad{border-color:rgba(251,113,133,.5)}
- @media(max-width:760px){
-  body{padding:0 14px 60px}
-  .topbar{position:sticky;top:0;z-index:60;margin:0 -14px 20px;padding:10px 14px;
-   background:rgba(7,12,26,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+ #toast.bad{border-color:rgba(255,129,146,.5)}
+ @media(max-width:850px){.grid{grid-template-columns:1fr}.oclist{max-height:300px}}
+ @media(max-width:650px){
+  body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
+  .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
+  .mark{width:40px;height:40px}.intro{align-items:start;flex-direction:column;gap:12px;margin:22px 0 15px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.kpi{padding:13px;min-height:91px}
+  .kpi .v{font-size:19px}.card{padding:17px 15px;border-radius:16px}
+  .grid{gap:12px}.dropzone{min-height:170px}.section-title{align-items:start;flex-direction:column}
  }
+ @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 </style></head><body>
 <div class="wrap">
  <div class="topbar">
-  <div><div class="eyebrow">Condomínio Elit's Park</div><h1>Painel do administrador</h1>
-   <div class="sub">Upload de balancetes · livro de ocorrências</div></div>
+  <div class="brand"><div class="mark" aria-hidden="true">EP</div>
+   <div class="brand-copy"><div class="eyebrow">Elit's Park · Administração</div><h1>Central do condomínio</h1></div>
+  </div>
   <div class="links">
-   <a class="home" href="/">Dashboard</a><a href="/historico.html">Histórico</a>
-   <a href="/ocorrencia">Ocorrência</a><a href="/logout">Sair 🔒</a>
+   <a class="home" href="/">Painel</a><a href="/historico.html">Histórico</a>
+   <a href="/ocorrencia">Nova ocorrência</a><a class="exit" href="/logout">Sair</a>
   </div>
  </div>
+ <section class="intro">
+  <div><h2>Olá, administrador.</h2><p>Visão geral e tarefas do condomínio em um só lugar.</p></div>
+  <div class="live"><i></i> Dados atualizados agora</div>
+ </section>
  <div class="kpis" id="kpis"></div>
  <div class="grid">
   <div class="card">
-   <h2>📤 Subir balancete</h2>
-   <div class="desc">O PDF vira a base de dados para todos os condôminos.</div>
-   <div id="drop"><b>Arraste o PDF</b> aqui<br>ou <u>clique para escolher</u></div>
-   <input type="file" id="fileInp" accept=".pdf" hidden>
+   <div class="card-head"><div><h3>Atualizar balancete</h3>
+    <div class="desc">Importe o PDF para atualizar os dados de todos os moradores.</div></div>
+    <span class="cnt">PDF</span></div>
+   <div id="drop" class="dropzone" role="button" tabindex="0" aria-label="Selecionar ou arrastar PDF">
+    <div class="upload-icon" aria-hidden="true">
+     <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4a1 1 0 001 1h12a1 1 0 001-1v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="drop-title">Solte o balancete aqui</div>
+    <div class="drop-hint">PDF do Condomínio21 · o mês é detectado automaticamente</div>
+    <span class="choose">Escolher arquivo</span>
+   </div>
+   <input type="file" id="fileInp" accept="application/pdf,.pdf">
    <div id="upStatus"></div>
+   <div class="upload-note"><span>✓</span> Reenviar um mês substitui os dados anteriores daquele mês.</div>
   </div>
   <div class="card">
-   <h2>📖 Livro de ocorrências <span class="cnt" id="ocN"></span></h2>
-   <div class="desc">Visível somente para você.</div>
+   <div class="card-head"><div><h3>Livro de ocorrências</h3>
+    <div class="desc">Registros recentes · visíveis somente para administração.</div></div>
+    <span class="cnt" id="ocN">0 registros</span></div>
+   <div class="tools"><input class="search" type="search" id="ocSearch" placeholder="Filtrar por categoria, unidade ou texto…"></div>
    <div class="oclist" id="ocList"></div>
   </div>
  </div>
- <div class="card">
-  <h2>Meses no banco</h2>
-  <div class="desc">Clique em "pdf" para baixar o original.</div>
-  <div style="overflow-x:auto"><table><thead>
+ <section class="section">
+  <div class="section-title"><div><h3>Balancetes importados</h3>
+   <p>Histórico de arquivos que formam a base atual do dashboard.</p></div>
+   <span class="cnt" id="monthN"></span></div>
+  <div class="table-wrap"><table><thead>
    <tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Água</th><th></th></tr>
   </thead><tbody id="tblBody"></tbody></table></div>
- </div>
+ </section>
+ <div class="footer-note">Os dados publicados são compartilhados por todos os moradores.</div>
 </div>
 <div id="toast"></div>
 <script>
@@ -261,6 +336,7 @@ const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let allOccurrences = [];
 
 function toast(msg, bad) {
   const t = $('toast'); t.textContent = msg;
@@ -269,44 +345,69 @@ function toast(msg, bad) {
 }
 
 async function resumo() {
-  const r = await (await fetch('/api/resumo')).json();
+  const res = await fetch('/api/resumo');
+  if (!res.ok) throw new Error('Não foi possível carregar o painel.');
+  const r = await res.json();
   const ult = r.meses[r.meses.length - 1] || {};
   $('kpis').innerHTML = `
-   <div class="kpi"><div class="l">Meses no banco</div><div class="v">${r.meses.length}</div></div>
-   <div class="kpi"><div class="l">Último mês</div><div class="v">${esc(ult.label || '—')}</div></div>
-   <div class="kpi"><div class="l">Água (último)</div><div class="v">${ult.agua != null ? BRL.format(ult.agua) : '—'}</div></div>
-   <div class="kpi"><div class="l">Ocorrências</div><div class="v">${r.ocorrencias.length}</div></div>`;
-  $('ocN').textContent = r.ocorrencias.length;
-  $('ocList').innerHTML = r.ocorrencias.length
-    ? r.ocorrencias.map(o => `<div class="oc"><div class="top">
-       <span class="cat">${esc(o.categoria)}</span><span>${esc(o.criado)}</span></div>
-       <div class="quem">${esc(o.unidade || '—')} · ${esc(o.nome || 'anônimo')}</div>
-       <div class="txt">${esc(o.texto)}</div></div>`).join('')
-    : '<div class="desc" style="margin:0">Nenhuma ocorrência registrada ainda.</div>';
-  $('tblBody').innerHTML = r.meses.map(m => `<tr>
-   <td><b>${esc(m.label)}</b></td><td>${BRL.format(m.rec)}</td><td>${BRL.format(m.desp)}</td>
-   <td><b>${BRL.format(m.agua)}</b></td><td><a href="/pdfs/${m.am}.pdf">pdf</a></td></tr>`).join('');
+   <div class="kpi"><div class="l">Meses registrados</div><div class="v">${r.meses.length}</div></div>
+   <div class="kpi"><div class="l">Último balancete</div><div class="v">${esc(ult.label || '—')}</div></div>
+   <div class="kpi"><div class="l">Água · último mês</div><div class="v">${ult.agua != null ? BRL.format(ult.agua) : '—'}</div></div>
+   <div class="kpi"><div class="l">Ocorrências registradas</div><div class="v">${r.ocorrencias.length}</div></div>`;
+  allOccurrences = r.ocorrencias;
+  $('ocN').textContent = `${r.ocorrencias.length} ${r.ocorrencias.length === 1 ? 'registro' : 'registros'}`;
+  $('monthN').textContent = `${r.meses.length} meses`;
+  renderOccurrences();
+  $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
+   <td><span class="month-tag ${i === 0 ? 'latest' : ''}"><i></i>${esc(m.label)}</span></td>
+   <td>${BRL.format(m.rec)}</td><td>${BRL.format(m.desp)}</td>
+   <td>${BRL.format(m.agua)}</td><td><a href="/pdfs/${encodeURIComponent(m.am)}.pdf">Baixar PDF ↗</a></td></tr>`).join('');
 }
-resumo();
+
+function renderOccurrences() {
+  const q = $('ocSearch').value.trim().toLocaleLowerCase('pt-BR');
+  const items = allOccurrences.filter(o =>
+    [o.categoria, o.unidade, o.nome, o.texto].join(' ').toLocaleLowerCase('pt-BR').includes(q)
+  ).slice(0, 12);
+  $('ocList').innerHTML = items.length
+    ? items.map(o => `<article class="oc"><div class="oc-top">
+       <span class="oc-cat">${esc(o.categoria || 'Outro')}</span><time class="oc-date">${esc(o.criado)}</time></div>
+       <div class="oc-meta">${esc(o.unidade || 'Sem unidade')} · ${esc(o.nome || 'Anônimo')}</div>
+       <div class="oc-txt">${esc(o.texto)}</div></article>`).join('')
+    : `<div class="empty">${q ? 'Nenhuma ocorrência corresponde à busca.' : 'Tudo em dia — nenhuma ocorrência registrada.'}</div>`;
+}
+resumo().catch(e => toast(e.message, true));
+$('ocSearch').addEventListener('input', renderOccurrences);
 
 const drop = $('drop'), fileInp = $('fileInp'), st = $('upStatus');
 drop.addEventListener('click', () => fileInp.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInp.click(); } });
 ['dragover', 'dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('on'); }));
 ['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('on'); }));
 drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) enviar(f); });
 fileInp.addEventListener('change', () => { if (fileInp.files[0]) enviar(fileInp.files[0]); });
 
 async function enviar(f) {
-  if (!f.name.toLowerCase().endsWith('.pdf')) { toast('Envie um arquivo PDF', true); return; }
-  st.textContent = `Processando ${f.name}…`; st.className = 'proc';
+  if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+    toast('Selecione um arquivo PDF válido.', true); return;
+  }
+  st.textContent = `Processando ${f.name}…`; st.className = 'show';
+  drop.style.pointerEvents = 'none'; drop.style.opacity = '.55';
   try {
     const fd = new FormData(); fd.append('pdf', f);
-    const j = await (await fetch('/upload', { method: 'POST', body: fd })).json();
+    const response = await fetch('/upload', { method: 'POST', body: fd });
+    const j = await response.json();
+    if (!response.ok || !j.ok) throw new Error(j.msg || 'Falha na importação.');
     toast(j.msg, !j.ok);
-  } catch (e) { toast('Falha ao enviar: ' + e, true); }
-  st.textContent = ''; st.className = '';
-  fileInp.value = '';
-  resumo();
+    st.textContent = `✓ ${j.msg}`; st.className = 'show ok';
+    await resumo();
+  } catch (e) {
+    toast(e.message || 'Falha ao enviar o arquivo.', true);
+    st.textContent = e.message || 'Falha ao processar o PDF.'; st.className = 'show bad';
+  } finally {
+    drop.style.pointerEvents = ''; drop.style.opacity = '';
+    fileInp.value = '';
+  }
 }
 </script></body></html>"""
 

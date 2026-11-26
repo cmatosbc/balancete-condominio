@@ -755,7 +755,7 @@ $('codBtn').addEventListener('click', async () => {
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
     Object.assign(lastCode, j.novos);
-    $('codTxt').value = Object.entries(j.novos).map(([u, c]) => `${u}: ${c}`).join('\n');
+    $('codTxt').value = Object.entries(j.novos).map(([u, c]) => `${u}: ${c}`).join('\\n');
     $('codOut').style.display = j.total ? '' : 'none';
     toast(j.total ? `${j.total} códigos gerados — copie a lista` : 'Todas as unidades já têm código.', !j.total);
     await resumo();

@@ -291,15 +291,16 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
  .apt:hover{border-color:var(--cyan);transform:scale(1.08)}
  .apt.late{background:rgba(251,113,133,.22);border-color:rgba(251,113,133,.6);color:#ffc2ca}
  .apt.sel{outline:2px solid var(--cyan);outline-offset:1px}
- .dots{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);display:flex;gap:2px}
- .dots i{width:4px;height:4px;border-radius:50%}
- .din{background:#34d399}.dout{background:#fb923c}.did{background:#c084fc}
+ .icons{position:absolute;bottom:1px;left:50%;transform:translateX(-50%);
+  display:flex;gap:2px;align-items:flex-end;pointer-events:none}
+ .icons svg{display:block}
+ .lic{width:13px;height:10px;vertical-align:-2px;margin-right:5px}
+ .lic2{width:10px;height:10px;vertical-align:-2px;margin-right:5px}
  .ocb{position:absolute;top:-5px;right:-5px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;
   background:#f4bd6a;color:#231a05;font-size:8.5px;font-weight:800;display:grid;place-items:center}
  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:13px;font-size:11px;color:var(--muted)}
  .lg{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
- .lg.late{background:rgba(251,113,133,.7)}.lg.din{background:#34d399}.lg.dout{background:#fb923c}
- .lg.did{background:#c084fc}.lg.docb{background:#f4bd6a;border-radius:50%}
+ .lg.late{background:rgba(251,113,133,.7)}.lg.docb{background:#f4bd6a;border-radius:50%}
  .upanel{margin-top:14px;border:1px solid rgba(85,213,208,.3);border-radius:15px;padding:15px 16px;
   background:linear-gradient(155deg,rgba(17,27,46,.95),rgba(12,19,34,.9))}
  .up-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
@@ -415,9 +416,9 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   <div class="blocks" id="blocks"></div>
   <div class="legend">
    <span><i class="lg late"></i>Em atraso</span>
-   <span><i class="lg din"></i>Mudança · entrada</span>
-   <span><i class="lg dout"></i>Mudança · saída</span>
-   <span><i class="lg did"></i>Idoso 75+</span>
+   <span><svg class="lic" viewBox="0 0 24 18" fill="#34d399" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · entrada</span>
+   <span><svg class="lic" viewBox="0 0 24 18" fill="#fb923c" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · saída</span>
+   <span><svg class="lic2" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>Idoso 75+</span>
    <span><i class="lg docb"></i>Ocorrência aberta</span>
   </div>
   <div id="unitPanel"></div>
@@ -503,6 +504,8 @@ function renderProps(props) {
 const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
 let lastMapa = {}, selUnit = null;
 const FLAG_TXT = { a: 'em atraso', mi: 'mudança (entrada)', mo: 'mudança (saída)', i: 'idoso 75+' };
+const TRUCK = c => `<svg width="12" height="9" viewBox="0 0 24 18" fill="${c}" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>`;
+const CROSS = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>';
 
 function renderBlocks(mapa) {
   const nLate = Object.values(mapa).filter(s => s.a).length;
@@ -513,12 +516,12 @@ function renderBlocks(mapa) {
       for (let n = 1; n <= 4; n++) {
         const id = `${b}-${f}${n}`, st = mapa[id] || {};
         if (st.a) nFlag++;
-        const dots = [st.mi && 'din', st.mo && 'dout', st.i && 'did']
-          .filter(Boolean).map(c => `<i class="${c}"></i>`).join('');
+        const ico = [st.mi && TRUCK('#34d399'), st.mo && TRUCK('#fb923c'), st.i && CROSS]
+          .filter(Boolean).join('');
         const tip = [id, ...Object.keys(FLAG_TXT).filter(k => st[k]).map(k => FLAG_TXT[k]),
           st.oc ? `${st.oc} ocorrência(s) aberta(s)` : ''].filter(Boolean).join(' · ');
         cells += `<button class="apt ${st.a ? 'late' : ''} ${selUnit === id ? 'sel' : ''}"
-          data-apt="${id}" title="${esc(tip)}">${f}${n}${dots ? `<span class="dots">${dots}</span>` : ''}${st.oc ? `<span class="ocb">${st.oc}</span>` : ''}</button>`;
+          data-apt="${id}" title="${esc(tip)}">${f}${n}${ico ? `<span class="icons">${ico}</span>` : ''}${st.oc ? `<span class="ocb">${st.oc}</span>` : ''}</button>`;
       }
     return `<div class="block"><div class="bname">${b}</div>
       <div class="bgrid">${cells}</div>
@@ -531,18 +534,18 @@ function renderUnitPanel() {
   const st = lastMapa[selUnit] || {};
   const [bloco, num] = selUnit.split('-');
   const ocs = allOccurrences.filter(o => !o.resolvida && o.unidade === selUnit);
-  const flag = (k, label, dot) => `<label class="uflag">
+  const flag = (k, label, ic) => `<label class="uflag">
     <input type="checkbox" data-flag="${k}" ${st[k] ? 'checked' : ''}>
-    <i class="lg ${dot}"></i>${label}</label>`;
+    ${ic}${label}</label>`;
   $('unitPanel').innerHTML = `<div class="upanel">
    <div class="up-head"><div><h3>${selUnit}</h3>
     <div class="up-sub">Bloco ${bloco} · ${num[0]}º andar · Apto ${num}</div></div>
     <button class="up-close" data-close title="Fechar">×</button></div>
    <div class="up-flags">
-    ${flag('a', 'Em atraso — sem voto', 'late')}
-    ${flag('mi', 'Mudança · entrada', 'din')}
-    ${flag('mo', 'Mudança · saída', 'dout')}
-    ${flag('i', 'Morador 75+', 'did')}
+    ${flag('a', 'Em atraso — sem voto', '<i class="lg late"></i>')}
+    ${flag('mi', 'Mudança · entrada', TRUCK('#34d399'))}
+    ${flag('mo', 'Mudança · saída', TRUCK('#fb923c'))}
+    ${flag('i', 'Morador 75+', CROSS)}
    </div>
    <div class="up-ocs"><div class="up-ocs-t">Ocorrências abertas</div>
     ${ocs.length ? ocs.map(o => `<div class="up-oc"><span class="oc-cat">${esc(o.categoria || 'Outro')}</span> ${esc(o.texto)}</div>`).join('')

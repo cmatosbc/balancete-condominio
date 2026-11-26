@@ -68,7 +68,9 @@ build (não é mais CSS escrito à mão).
   em `/perfil` (`POST /perfil/contato` — própria unidade ou admin).
   WhatsApp: `POST /admin/unidade/<id>/whatsapp/enviar` envia código
   temporário via Evolution API self-hosted (env `EVO_URL/KEY/INSTANCE`,
-  endpoint `/message/sendText/{instance}`). A licença da Evolution API
+  endpoint `/message/sendText/{instance}` — body `{number, text}`;
+  o formato `{textMessage:{text}}` da doc nova é REJEITADO pela
+  v2.3.8 com "requires property text"). A licença da Evolution API
   (Apache 2.0 + condições) exige aviso visível a admins de que ela é
   usada — o painel da unidade mostra essa nota quando `evo=true` no
   `/api/resumo`. Sem Evolution configurada, a rota retorna 400
@@ -107,7 +109,10 @@ build (não é mais CSS escrito à mão).
   `theme.css` + vendora `preline.js`; imagem final é só
   python+poppler+gunicorn (zero Node em produção); volume `/data`;
   PDFs de `pdfs/` semeiam o banco. `.dockerignore` exclui
-  `node_modules/` e `data/`.
+  `node_modules/` e `data/`. WhatsApp: `docker compose --profile
+  whatsapp up -d` sobe Evolution API (`evolution`, porta 8081) +
+  `evopg` (sessões) + `evoredis`; chaves em `.env` (gitignored):
+  `EVO_KEY` (apikey + login do `/manager`), `EVO_DB_PASS`.
 - `data/` — artefatos de runtime do container (gitignored).
 - `.github/workflows/atualizar.yml` — CI: push em `pdfs/` → extrai → commita
 - `AGENTS.md` — este arquivo

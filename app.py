@@ -329,8 +329,7 @@ def enviar_codigo_whatsapp(unidade, fone, codigo):
              f"Entre em {PUBLIC_URL} (aba \"Sou morador\"): selecione bloco "
              f"e apartamento e informe o código. No primeiro acesso você "
              f"define sua senha pessoal — o código expira após a troca.")
-    payload = json.dumps(
-        {'number': fone, 'textMessage': {'text': texto}}).encode()
+    payload = json.dumps({'number': fone, 'text': texto}).encode()
     req = urllib.request.Request(
         f"{EVO['URL'].rstrip('/')}/message/sendText/{EVO['INSTANCE']}",
         data=payload,

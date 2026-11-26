@@ -14,7 +14,9 @@ import hashlib
 import hmac
 import os
 import secrets
+import smtplib
 import urllib.parse
+from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
 
@@ -105,6 +107,14 @@ def role():
     return session.get('role')
 
 
+@app.before_request
+def _force_troca_senha():
+    """Morador com código temporário só acessa a troca de senha."""
+    if session.get('trocar') and request.endpoint not in (
+            'trocar_senha', 'logout', 'theme_css', 'static_files'):
+        return redirect('/trocar-senha')
+
+
 def need_login(f):
     @wraps(f)
     def w(*a, **kw):
@@ -154,9 +164,9 @@ def login():
              '<label>Unidade</label><div class="ugrid">'
              f'<select name="bloco" required><option value="">Bloco…</option>{blocos}</select>'
              f'<select name="apto" required><option value="">Apto…</option>{aptos}</select></div>'
-             '<label>Código de acesso</label>'
-             '<input type="password" name="codigo" inputmode="numeric" maxlength="4" '
-             'placeholder="4 dígitos" required autocomplete="off">'
+             '<label>Código de acesso ou sua senha</label>'
+             '<input type="password" name="codigo" '
+             'placeholder="Código do e-mail ou senha pessoal" required autocomplete="off">'
              '<button type="submit">Entrar</button></form>'
              '<form method="post" action="/login" id="fa" style="display:none">'
              '<input type="hidden" name="modo" value="admin">'
@@ -182,7 +192,7 @@ def do_login():
         uid = f'{bloco}-{apto}'
         if bloco not in BLOCOS or apto not in APTOS:
             return redirect('/login?e=unidade')
-        row = odb().execute('SELECT codigo FROM unidades WHERE unidade = ?',
+        row = odb().execute('SELECT codigo, senha_temp FROM unidades WHERE unidade = ?',
                             (uid,)).fetchone()
         if not row or not row[0]:
             return redirect('/login?e=semcodigo')
@@ -191,6 +201,12 @@ def do_login():
             return redirect('/login?e=e')
         session['role'] = 'morador'
         session['unidade'] = uid
+        if row[1]:
+            session['trocar'] = 1
+            resp = redirect('/trocar-senha')
+            resp.set_cookie('cond_app', '1')
+            resp.set_cookie('cond_role', 'morador')
+            return resp
     else:
         pw = request.form.get('senha', '')
         r = 'admin' if hmac.compare_digest(pw, ADMIN_PW) else \
@@ -507,7 +523,8 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
    <span><i class="advb" style="position:static">!</i>Advertência</span>
   </div>
   <div class="codbar"><span class="cod-st" id="codN"></span>
-   <button class="pbtn" id="codBtn">Gerar códigos pendentes</button></div>
+   <button class="pbtn" id="codBtn">Gerar códigos pendentes</button>
+   <button class="pbtn" id="mailBtn">Enviar códigos por e-mail</button></div>
   <div id="codOut" class="code-list" style="display:none">
    <div class="up-ocs-t">Códigos gerados — copie e distribua (não ficam salvos em texto puro)</div>
    <textarea readonly id="codTxt"></textarea></div>
@@ -554,6 +571,7 @@ async function resumo() {
   renderProps(r.propostas);
   allAdvs = r.advertencias;
   codeSet = new Set(r.codigos);
+  uEmails = r.emails || {};
   $('codN').textContent = `${r.codigos.length}/144 códigos emitidos`;
   lastMapa = r.mapa;
   renderBlocks(r.mapa);
@@ -595,7 +613,7 @@ function renderProps(props) {
   }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
 }
 const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
-let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {};
+let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {}, uEmails = {};
 const FLAG_TXT = { a: 'em atraso', mi: 'mudança (entrada)', mo: 'mudança (saída)', i: 'idoso 75+' };
 const TRUCK = c => `<svg width="12" height="9" viewBox="0 0 24 18" fill="${c}" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>`;
 const CROSS = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>';
@@ -654,11 +672,20 @@ function renderUnitPanel() {
       <button class="adv-x" data-advdel="${a.id}" title="Remover">×</button></span></div>`).join('')
      : '<div class="up-ocs">Nenhuma registrada.</div>'}
    </div>
+   <div class="up-sec"><div class="up-ocs-t">E-mail do morador</div>
+    <div class="adv-form"><input type="email" id="mailInp" maxlength="120"
+      placeholder="email@exemplo.com" value="${esc(uEmails[selUnit] || '')}">
+     <button data-mail>Salvar</button>
+     <button class="pbtn" data-mailsend ${uEmails[selUnit] ? '' : 'disabled'}
+      title="Gera código temporário e envia por e-mail (também redefine a senha)">Enviar código</button></div>
+    ${!uEmails[selUnit] ? '<div style="font-size:10.5px;color:#64748b;margin-top:4px">Salve o e-mail para habilitar o envio.</div>' : ''}
+   </div>
    <div class="up-sec"><div class="up-ocs-t">Código de acesso do morador</div>
     <div class="cod-row"><span class="cod-st ${hasCode ? 'on' : ''}">${hasCode ? '✓ Código ativo' : 'Sem código — o morador não acessa o perfil'}</span>
      <button class="pbtn" data-cod>${hasCode ? 'Gerar novo código' : 'Gerar código'}</button></div>
     ${lastCode[selUnit] ? `<div class="code-out">Código: <b>${lastCode[selUnit]}</b><br>
       <span style="font-size:10.5px">Distribua ao morador — gerar um novo invalida este.</span></div>` : ''}
+    <div style="font-size:10.5px;color:#64748b;margin-top:6px">Códigos são temporários: no primeiro acesso o morador define a senha pessoal.</div>
    </div>
   </div>`;
 }
@@ -705,6 +732,22 @@ $('unitPanel').addEventListener('click', async e => {
       lastCode[selUnit] = j.codigo;
       toast(`Código da unidade ${selUnit}: ${j.codigo}`);
       await resumo();
+      return;
+    }
+    if (e.target.closest('[data-mail]')) {
+      const inp = $('mailInp'), email = inp.value.trim();
+      const fd = new FormData(); fd.append('email', email);
+      const r = await fetch(`/admin/unidade/${selUnit}/email`, { method: 'POST', body: fd });
+      const j = await r.json();
+      toast(j.msg || (email ? `E-mail de ${selUnit} salvo.` : `E-mail de ${selUnit} removido.`), !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
+      return;
+    }
+    if (e.target.closest('[data-mailsend]')) {
+      const r = await fetch(`/admin/unidade/${selUnit}/email/enviar`, { method: 'POST' });
+      const j = await r.json();
+      toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
     }
   } catch (err) { toast(err.message || 'Falha ao atualizar a unidade.', true); }
 });
@@ -760,6 +803,15 @@ $('codBtn').addEventListener('click', async () => {
     toast(j.total ? `${j.total} códigos gerados — copie a lista` : 'Todas as unidades já têm código.', !j.total);
     await resumo();
   } catch (err) { toast(err.message || 'Falha ao gerar códigos.', true); }
+});
+$('mailBtn').addEventListener('click', async () => {
+  if (!confirm('Enviar código temporário por e-mail para as unidades com e-mail cadastrado e sem senha própria?')) return;
+  try {
+    const r = await fetch('/admin/codigos/email', { method: 'POST' });
+    const j = await r.json();
+    toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
+    if (r.ok && j.ok) await resumo();
+  } catch (err) { toast(err.message || 'Falha ao enviar códigos.', true); }
 });
 
 const drop = $('drop'), fileInp = $('fileInp'), st = $('upStatus');
@@ -826,6 +878,8 @@ def api_resumo():
             'ORDER BY id DESC LIMIT 200').fetchall()],
         'codigos': [u for u, in odb().execute(
             'SELECT unidade FROM unidades WHERE codigo IS NOT NULL')],
+        'emails': {u: e for u, e in odb().execute(
+            'SELECT unidade, email FROM unidades WHERE email IS NOT NULL')},
         'mapa': mapa_unidades(odb())}
 
 
@@ -887,6 +941,36 @@ BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3']  # 6 andares × 4 aptos (11-14 …
 APTOS = {f'{f}{n}' for f in range(1, 7) for n in range(1, 5)}
 UFLAGS = {'a': 'em_atraso', 'mi': 'mud_in', 'mo': 'mud_out', 'i': 'idoso75'}
 
+SMTP = {k: os.environ.get(f'SMTP_{k}', '') for k in ('HOST', 'PORT', 'USER', 'PASS', 'FROM')}
+PUBLIC_URL = os.environ.get('PUBLIC_URL', 'http://localhost:8080')
+
+
+def smtp_ok():
+    return bool(SMTP['HOST'] and SMTP['FROM'] and (not SMTP['USER'] or SMTP['PASS']))
+
+
+def enviar_codigo(unidade, email, codigo):
+    """Envia o código temporário da unidade por e-mail (smtplib)."""
+    msg = EmailMessage()
+    msg['Subject'] = f"Condomínio Elit's Park — acesso da unidade {unidade}"
+    msg['From'] = SMTP['FROM']
+    msg['To'] = email
+    msg.set_content(
+        f"Olá, morador da unidade {unidade}!\n\n"
+        f"Seu código de acesso ao portal do condomínio:\n\n"
+        f"    {codigo}\n\n"
+        f"Entre em {PUBLIC_URL} , aba \"Sou morador\": selecione bloco e "
+        f"apartamento e informe o código.\n"
+        f"No primeiro acesso você define sua senha pessoal — guarde-a, "
+        f"o código expira após a troca.\n\n"
+        f"— Administração do Condomínio Elit's Park\n")
+    with smtplib.SMTP(SMTP['HOST'], int(SMTP['PORT'] or 587), timeout=10) as s:
+        s.ehlo()
+        s.starttls()
+        if SMTP['USER']:
+            s.login(SMTP['USER'], SMTP['PASS'])
+        s.send_message(msg)
+
 
 _db_ready = False
 
@@ -919,13 +1003,16 @@ def odb():
     conn.execute("""CREATE TABLE IF NOT EXISTS unidades(
         unidade TEXT PRIMARY KEY, em_atraso INTEGER DEFAULT 0,
         mud_in INTEGER DEFAULT 0, mud_out INTEGER DEFAULT 0,
-        idoso75 INTEGER DEFAULT 0, codigo TEXT)""")
+        idoso75 INTEGER DEFAULT 0, codigo TEXT, email TEXT,
+        senha_temp INTEGER DEFAULT 1)""")
     cols = {r[1] for r in conn.execute('PRAGMA table_info(unidades)')}
-    for col in ('mud_in', 'mud_out', 'idoso75'):
+    for col in ('mud_in', 'mud_out', 'idoso75', 'senha_temp'):
         if col not in cols:
-            conn.execute(f'ALTER TABLE unidades ADD COLUMN {col} INTEGER DEFAULT 0')
+            conn.execute(f'ALTER TABLE unidades ADD COLUMN {col} INTEGER DEFAULT 1')
     if 'codigo' not in cols:
         conn.execute('ALTER TABLE unidades ADD COLUMN codigo TEXT')
+    if 'email' not in cols:
+        conn.execute('ALTER TABLE unidades ADD COLUMN email TEXT')
     conn.executemany(
         'INSERT OR IGNORE INTO unidades(unidade) VALUES (?)',
         [(f'{b}-{f}{n}',) for b in BLOCOS
@@ -1063,6 +1150,46 @@ def remover_advertencia(aid):
     return {'ok': True}
 
 
+@app.route('/trocar-senha', methods=['GET', 'POST'])
+def trocar_senha():
+    """Aceite do código: o morador define a senha própria (obrigatório
+    enquanto session['trocar'] estiver setado — ver before_request)."""
+    if not session.get('unidade') or not session.get('trocar'):
+        return redirect('/')
+    if request.method == 'POST':
+        s1 = request.form.get('senha', '')
+        s2 = request.form.get('senha2', '')
+        if len(s1) < 6:
+            return redirect('/trocar-senha?erro=' + urllib.parse.quote(
+                'Use pelo menos 6 caracteres.'))
+        if s1 != s2:
+            return redirect('/trocar-senha?erro=' + urllib.parse.quote(
+                'As senhas não coincidem.'))
+        conn = odb()
+        conn.execute('UPDATE unidades SET codigo = ?, senha_temp = 0 WHERE unidade = ?',
+                     (hashlib.sha256(s1.encode()).hexdigest(), session['unidade']))
+        conn.commit()
+        session.pop('trocar')
+        return redirect('/')
+    erro = (f'<p class="bad">⚠ {escape(request.args.get("erro", ""))}</p>'
+            if request.args.get('erro') else '')
+    return render_template_string(
+        PAGE, titulo='Defina sua senha',
+        body=f'<div class="card"><div class="eyebrow">Primeiro acesso</div>'
+             f'<h1>Defina sua senha</h1>'
+             f'<p class="mut">Unidade <b>{escape(session["unidade"])}</b> — o código '
+             f'de e-mail é temporário. Crie sua senha pessoal (mín. 6 caracteres).</p>'
+             f'{erro}'
+             f'<form method="post">'
+             f'<label>Nova senha</label>'
+             f'<input type="password" name="senha" minlength="6" required '
+             f'autocomplete="new-password">'
+             f'<label>Repita a senha</label>'
+             f'<input type="password" name="senha2" minlength="6" required '
+             f'autocomplete="new-password">'
+             f'<button type="submit">Salvar e entrar</button></form></div>')
+
+
 @app.post('/admin/codigos/gerar')
 @need_admin
 def gerar_codigos():
@@ -1073,7 +1200,7 @@ def gerar_codigos():
     for (u,) in conn.execute(
             'SELECT unidade FROM unidades WHERE codigo IS NULL ORDER BY unidade'):
         c = f'{secrets.randbelow(9000) + 1000}'
-        conn.execute('UPDATE unidades SET codigo = ? WHERE unidade = ?',
+        conn.execute('UPDATE unidades SET codigo = ?, senha_temp = 1 WHERE unidade = ?',
                      (hashlib.sha256(c.encode()).hexdigest(), u))
         novos[u] = c
     conn.commit()
@@ -1091,10 +1218,78 @@ def gerar_codigo(uid):
                         (uid,)).fetchone():
         return {'ok': False, 'msg': 'Unidade desconhecida.'}, 404
     codigo = f'{secrets.randbelow(9000) + 1000}'
-    conn.execute('UPDATE unidades SET codigo = ? WHERE unidade = ?',
+    conn.execute('UPDATE unidades SET codigo = ?, senha_temp = 1 WHERE unidade = ?',
                  (hashlib.sha256(codigo.encode()).hexdigest(), uid))
     conn.commit()
     return {'ok': True, 'codigo': codigo}
+
+
+@app.post('/admin/unidade/<uid>/email')
+@need_admin
+def salvar_email(uid):
+    email = request.form.get('email', '').strip().lower()
+    if email and ('@' not in email or len(email) > 120):
+        return {'ok': False, 'msg': 'E-mail inválido.'}, 400
+    conn = odb()
+    cur = conn.execute('UPDATE unidades SET email = ? WHERE unidade = ?',
+                       (email or None, uid.upper()))
+    conn.commit()
+    if not cur.rowcount:
+        return {'ok': False, 'msg': 'Unidade desconhecida.'}, 404
+    return {'ok': True}
+
+
+@app.post('/admin/unidade/<uid>/email/enviar')
+@need_admin
+def enviar_codigo_email(uid):
+    """Gera código temporário e envia por e-mail — também serve como
+    reset de acesso (invalida a senha atual → aceite de novo)."""
+    uid = uid.upper()
+    conn = odb()
+    row = conn.execute('SELECT email FROM unidades WHERE unidade = ?',
+                       (uid,)).fetchone()
+    if not row or not row[0]:
+        return {'ok': False, 'msg': 'Cadastre o e-mail da unidade primeiro.'}, 400
+    if not smtp_ok():
+        return {'ok': False,
+                'msg': 'SMTP não configurado (SMTP_HOST/FROM/USER/PASS no env).'}, 400
+    codigo = f'{secrets.randbelow(9000) + 1000}'
+    try:
+        enviar_codigo(uid, row[0], codigo)
+    except Exception as e:
+        return {'ok': False, 'msg': f'Falha ao enviar: {e}'}, 502
+    conn.execute('UPDATE unidades SET codigo = ?, senha_temp = 1 WHERE unidade = ?',
+                 (hashlib.sha256(codigo.encode()).hexdigest(), uid))
+    conn.commit()
+    return {'ok': True, 'msg': f'Código enviado para {row[0]}'}
+
+
+@app.post('/admin/codigos/email')
+@need_admin
+def enviar_codigos_email():
+    """Envia código temporário por e-mail para toda unidade que tem
+    e-mail cadastrado e ainda não definiu senha própria."""
+    if not smtp_ok():
+        return {'ok': False,
+                'msg': 'SMTP não configurado (SMTP_HOST/FROM/USER/PASS no env).'}, 400
+    conn = odb()
+    rows = conn.execute(
+        'SELECT unidade, email FROM unidades WHERE email IS NOT NULL '
+        'AND senha_temp = 1 ORDER BY unidade').fetchall()
+    sent = fail = 0
+    for u, e in rows:
+        codigo = f'{secrets.randbelow(9000) + 1000}'
+        try:
+            enviar_codigo(u, e, codigo)
+            conn.execute(
+                'UPDATE unidades SET codigo = ?, senha_temp = 1 WHERE unidade = ?',
+                (hashlib.sha256(codigo.encode()).hexdigest(), u))
+            conn.commit()
+            sent += 1
+        except Exception:
+            fail += 1
+    return {'ok': True,
+            'msg': f'{sent} código(s) enviado(s)' + (f', {fail} falha(s)' if fail else '')}
 
 
 # ---------------- propostas & votação ----------------
@@ -1570,7 +1765,7 @@ def perfil_acesso():
     uid = f'{bloco}-{apto}'
     if bloco not in BLOCOS or apto not in APTOS:
         return redirect('/perfil?erro=unidade')
-    row = odb().execute('SELECT codigo FROM unidades WHERE unidade = ?',
+    row = odb().execute('SELECT codigo, senha_temp FROM unidades WHERE unidade = ?',
                         (uid,)).fetchone()
     if not row or not row[0]:
         return redirect('/perfil?erro=semcodigo')
@@ -1578,6 +1773,9 @@ def perfil_acesso():
     if not hmac.compare_digest(row[0], hashlib.sha256(codigo.encode()).hexdigest()):
         return redirect('/perfil?erro=codigo')
     session['unidade'] = uid
+    if row[1]:
+        session['trocar'] = 1
+        return redirect('/trocar-senha')
     return redirect('/perfil')
 
 

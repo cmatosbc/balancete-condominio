@@ -22,13 +22,23 @@ Condomínio21 / Brancalion).
   cookie `cond_app` pula o portão — a sessão do app é a auth real).
 - `app.py` — servidor Flask (Docker): login com 2 níveis — admin usa
   `ADMIN_PASSWORD` (acesso total, `/admin` + `POST /upload`); morador
-  usa bloco+apto+código de 4 dígitos da unidade (sha256 no banco;
-  `session['unidade']` vinculada → voto usa a unidade da sessão,
-  `/perfil` direto, selects pré-preenchidos). `MORADOR_PASSWORD` é
+  usa bloco+apto+código OU senha própria da unidade (sha256 em
+  `unidades.codigo`; `session['unidade']` vinculada → voto usa a
+  unidade da sessão, `/perfil` direto, selects pré-preenchidos).
+  Código emitido é temporário (`senha_temp=1`): primeiro acesso cai
+  no gate `before_request` → `/trocar-senha` até definir senha ≥6
+  (aí `senha_temp=0` e o código velho morre). `MORADOR_PASSWORD` é
   opcional — aba "Administrador" aceita essa senha como acesso
   genérico sem unidade (transição). `SECRET_KEY` em `DATA_DIR/.secret_key`.
   `POST /admin/codigos/gerar` emite códigos para todas as unidades sem
   código e devolve a lista uma única vez (para distribuição).
+  E-mail: `unidades.email` + envio via SMTP (env `SMTP_HOST/PORT/
+  USER/PASS/FROM`, `PUBLIC_URL`) — `POST /admin/unidade/<id>/email`
+  cadastra, `/…/email/enviar` envia código temporário (também serve
+  como reset: regenera `senha_temp=1`), `POST /admin/codigos/email`
+  envia em massa só para unidades com e-mail e `senha_temp=1`. Sem
+  SMTP configurado, as rotas retornam 400 explicativo — vale o
+  "Gerar código" manual.
   Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
   `ocorrencias` → listadas no `/admin`; admin alterna `resolvida` via
   `POST /admin/ocorrencia/<id>/resolver`.

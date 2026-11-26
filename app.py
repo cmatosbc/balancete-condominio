@@ -279,6 +279,17 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
  .pbtn{margin-top:10px;padding:6px 11px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
   border:1px solid rgba(148,163,184,.3);background:transparent;color:var(--muted);transition:.15s}
  .pbtn:hover{color:var(--text);border-color:rgba(148,163,184,.55)}
+ .blocks{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+ .block{border:1px solid var(--border);border-radius:14px;padding:11px;background:rgba(4,10,20,.35)}
+ .bname{font-family:'Space Grotesk';font-size:12px;font-weight:700;color:var(--cyan);
+  text-align:center;margin-bottom:9px;letter-spacing:1.5px}
+ .bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+ .apt{aspect-ratio:1;display:grid;place-items:center;border-radius:6px;padding:0;
+  border:1px solid rgba(148,163,184,.14);background:rgba(17,27,46,.6);
+  color:#b7c3d5;font-size:10px;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit}
+ .apt:hover{border-color:var(--cyan);transform:scale(1.08)}
+ .apt.late{background:rgba(251,113,133,.22);border-color:rgba(251,113,133,.6);color:#ffc2ca}
+ .b-tot{color:#66758b;font-size:9.5px;text-align:center;margin-top:8px}
  .empty{color:var(--muted);text-align:center;padding:32px 14px;font-size:13px}
  .section{margin-top:16px}
  .section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:13px}
@@ -304,7 +315,9 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
  #toast.show{transform:translate(-50%,0);opacity:1}
  #toast.bad{border-color:rgba(255,129,146,.5)}
  @media(max-width:850px){.grid{grid-template-columns:1fr}.oclist{max-height:300px}
- .prop-grid{grid-template-columns:1fr}.prop-list{max-height:400px}}
+ .prop-grid{grid-template-columns:1fr}.prop-list{max-height:400px}
+ .blocks{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:480px){.blocks{grid-template-columns:repeat(2,1fr)}}
  @media(max-width:650px){
   body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
   .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
@@ -370,6 +383,12 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   </div>
  </section>
  <section class="section">
+  <div class="section-title"><div><h3>Desenho predial</h3>
+   <p>Toque em uma unidade para marcar/desmarcar atraso — unidades em atraso não votam.</p></div>
+   <span class="cnt" id="lateN"></span></div>
+  <div class="blocks" id="blocks"></div>
+ </section>
+ <section class="section">
   <div class="section-title"><div><h3>Balancetes importados</h3>
    <p>Histórico de arquivos que formam a base atual do dashboard.</p></div>
    <span class="cnt" id="monthN"></span></div>
@@ -408,6 +427,7 @@ async function resumo() {
   $('monthN').textContent = `${r.meses.length} meses`;
   renderOccurrences();
   renderProps(r.propostas);
+  renderBlocks(r.inadimplentes);
   $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
    <td><span class="month-tag ${i === 0 ? 'latest' : ''}"><i></i>${esc(m.label)}</span></td>
    <td>${BRL.format(m.rec)}</td><td>${BRL.format(m.desp)}</td>
@@ -445,8 +465,36 @@ function renderProps(props) {
     </article>`;
   }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
 }
+const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
+function renderBlocks(lates) {
+  const set = new Set(lates);
+  $('lateN').textContent = `${lates.length} em atraso`;
+  $('blocks').innerHTML = BLOCOS.map(b => {
+    let cells = '', nLate = 0;
+    for (let f = 6; f >= 1; f--)
+      for (let n = 1; n <= 4; n++) {
+        const id = `${b}-${f}${n}`;
+        if (set.has(id)) nLate++;
+        cells += `<button class="apt ${set.has(id) ? 'late' : ''}" data-apt="${id}"
+          title="${id}${set.has(id) ? ' — em atraso' : ''}">${f}${n}</button>`;
+      }
+    return `<div class="block"><div class="bname">${b}</div>
+      <div class="bgrid">${cells}</div>
+      <div class="b-tot">${nLate ? nLate + ' em atraso' : 'em dia'}</div></div>`;
+  }).join('');
+}
 resumo().catch(e => toast(e.message, true));
 $('ocSearch').addEventListener('input', renderOccurrences);
+$('blocks').addEventListener('click', async e => {
+  const b = e.target.closest('[data-apt]');
+  if (!b) return;
+  try {
+    const r = await fetch(`/admin/unidade/${b.dataset.apt}/atraso`, { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao atualizar.');
+    await resumo();
+  } catch (err) { toast(err.message || 'Falha ao atualizar a unidade.', true); }
+});
 $('ocList').addEventListener('click', async e => {
   const b = e.target.closest('[data-oc]');
   if (!b) return;
@@ -535,7 +583,10 @@ def api_resumo():
                         for i, c, u, n, cat, t, r in ocs],
         'propostas': [{'id': i, 'criado': c, 'titulo': t, 'descricao': d,
                        'aberta': bool(ab), 'favor': f, 'contra': co}
-                      for i, c, t, d, ab, f, co in props]}
+                      for i, c, t, d, ab, f, co in props],
+        'inadimplentes': [r[0] for r in odb().execute(
+            'SELECT unidade FROM unidades WHERE em_atraso = 1 '
+            'ORDER BY unidade').fetchall()]}
 
 
 @app.post('/upload')
@@ -574,9 +625,20 @@ def pdf(nome):
 CATEGORIAS = ['Barulho', 'Vazamento / infiltração', 'Manutenção', 'Limpeza',
               'Segurança', 'Elevador', 'Estacionamento / garagem', 'Animais', 'Outro']
 
+BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3']  # 6 andares × 4 aptos (11-14 … 61-64)
+
+
+_db_ready = False
+
 
 def odb():
+    """Conexão com o banco de dados. Na 1ª chamada do processo garante o
+    schema (migrações + semente das unidades); depois vira conexão pura —
+    sem isso, cada leitura abriria uma transação de escrita e travaria o banco."""
+    global _db_ready
     conn = extrair.db_conn()
+    if _db_ready:
+        return conn
     conn.execute("""CREATE TABLE IF NOT EXISTS ocorrencias(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         criado_em TEXT DEFAULT (datetime('now','localtime')),
@@ -594,6 +656,14 @@ def odb():
         voto TEXT NOT NULL,
         criado_em TEXT DEFAULT (datetime('now','localtime')),
         UNIQUE(proposta_id, unidade))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS unidades(
+        unidade TEXT PRIMARY KEY, em_atraso INTEGER DEFAULT 0)""")
+    conn.executemany(
+        'INSERT OR IGNORE INTO unidades(unidade) VALUES (?)',
+        [(f'{b}-{f}{n}',) for b in BLOCOS
+         for f in range(1, 7) for n in range(1, 5)])
+    conn.commit()
+    _db_ready = True
     return conn
 
 
@@ -666,6 +736,19 @@ def resolver_ocorrencia(oid):
     return {'ok': True}
 
 
+@app.post('/admin/unidade/<uid>/atraso')
+@need_admin
+def alternar_atraso(uid):
+    conn = odb()
+    cur = conn.execute(
+        'UPDATE unidades SET em_atraso = 1 - em_atraso WHERE unidade = ?',
+        (uid.upper(),))
+    conn.commit()
+    if not cur.rowcount:
+        return {'ok': False, 'msg': 'Unidade desconhecida.'}, 404
+    return {'ok': True}
+
+
 # ---------------- propostas & votação ----------------
 
 PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
@@ -709,6 +792,9 @@ PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   font-family:inherit;font-size:14px;font-weight:600;outline:none}
  .unit-card input:focus{border-color:var(--cyan)}
  .unit-hint{color:#66758b;font-size:11px;white-space:nowrap}
+ .warn{display:flex;align-items:center;gap:10px;color:#ffcf9e;font-size:13px;
+  background:rgba(251,146,60,.09);border:1px solid rgba(251,146,60,.35);
+  border-radius:12px;padding:12px 15px;margin-bottom:18px}
  .prop{background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
   border:1px solid var(--border);border-radius:18px;padding:19px 20px;margin-bottom:13px;
   box-shadow:0 15px 45px rgba(0,0,0,.13)}
@@ -768,6 +854,7 @@ PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   <input id="unid" placeholder="Ex.: A3-11" maxlength="12" autocomplete="off">
   <span class="unit-hint">Necessária para votar · fica salva neste aparelho</span>
  </div>
+ <div id="avisoAtraso"></div>
  <div id="lista"></div>
 </div>
 <div id="toast"></div>
@@ -775,7 +862,7 @@ PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let props = [];
+let props = [], emAtraso = false;
 
 function toast(msg, bad) {
   const t = $('toast'); t.textContent = msg;
@@ -789,7 +876,12 @@ async function carregar() {
   const u = unidade();
   const r = await fetch('/api/propostas' + (u ? '?unidade=' + encodeURIComponent(u) : ''));
   if (!r.ok) throw new Error('Não foi possível carregar as propostas.');
-  props = (await r.json()).propostas;
+  const j = await r.json();
+  props = j.propostas;
+  emAtraso = j.unidade_em_atraso;
+  $('avisoAtraso').innerHTML = emAtraso
+    ? '<div class="warn">⚠ <span>Unidade em atraso — a votação fica suspensa até a regularização com a administração.</span></div>'
+    : '';
   render();
 }
 
@@ -797,13 +889,13 @@ function render() {
   $('lista').innerHTML = props.length ? props.map(p => {
     const tot = p.favor + p.contra;
     const pf = tot ? p.favor * 100 / tot : 0;
-    const btns = p.aberta ? `
-     <div class="vote-row">
+    const btns = !p.aberta ? '' : emAtraso
+      ? '<div class="voted">Votação suspensa para esta unidade.</div>'
+      : `<div class="vote-row">
       <button class="vb favor ${p.meu_voto === 'favor' ? 'mine' : ''}" data-v="favor" data-p="${p.id}">👍 A favor</button>
       <button class="vb contra ${p.meu_voto === 'contra' ? 'mine' : ''}" data-v="contra" data-p="${p.id}">👎 Contra</button>
      </div>
-     ${p.meu_voto ? `<div class="voted">Seu voto atual: <b>${p.meu_voto === 'favor' ? 'a favor' : 'contra'}</b> — vote de novo para mudar</div>` : ''}`
-      : '';
+     ${p.meu_voto ? `<div class="voted">Seu voto atual: <b>${p.meu_voto === 'favor' ? 'a favor' : 'contra'}</b> — vote de novo para mudar</div>` : ''}`;
     return `<article class="prop">
      <div class="prop-top"><span class="pstate ${p.aberta ? 'open' : 'closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
       <time class="pdate">${esc(p.criado)}</time></div>
@@ -852,10 +944,14 @@ def api_propostas():
     conn = odb()
     unidade = request.args.get('unidade', '').strip().upper()
     mine = {}
+    em_atraso = False
     if unidade:
         mine = {pid: v for pid, v in conn.execute(
             'SELECT proposta_id, voto FROM votos WHERE unidade = ?', (unidade,))}
-    return {'propostas': [
+        u = conn.execute(
+            'SELECT em_atraso FROM unidades WHERE unidade = ?', (unidade,)).fetchone()
+        em_atraso = bool(u and u[0])
+    return {'unidade_em_atraso': em_atraso, 'propostas': [
         {'id': i, 'criado': c, 'titulo': t, 'descricao': d, 'aberta': bool(ab),
          'favor': f, 'contra': co, 'meu_voto': mine.get(i)}
         for i, c, t, d, ab, f, co in propostas_rows(conn)]}
@@ -869,6 +965,14 @@ def votar(pid):
     if not unidade or voto not in ('favor', 'contra'):
         return {'ok': False, 'msg': 'Informe sua unidade e escolha uma opção.'}, 400
     conn = odb()
+    u = conn.execute(
+        'SELECT em_atraso FROM unidades WHERE unidade = ?', (unidade,)).fetchone()
+    if not u:
+        return {'ok': False,
+                'msg': 'Unidade não encontrada — formato BLOCO-NÚMERO (ex.: A3-11).'}, 400
+    if u[0]:
+        return {'ok': False,
+                'msg': 'Unidade em atraso — regularize com a administração para votar.'}, 403
     p = conn.execute('SELECT aberta FROM propostas WHERE id = ?', (pid,)).fetchone()
     if not p:
         return {'ok': False, 'msg': 'Proposta não encontrada.'}, 404

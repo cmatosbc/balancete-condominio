@@ -443,6 +443,8 @@ def ano_mes(d):
 
 def db_conn():
     conn = sqlite3.connect(DB)
+    conn.execute('PRAGMA busy_timeout = 5000')
+    conn.execute('PRAGMA journal_mode = WAL')
     conn.execute("""CREATE TABLE IF NOT EXISTS meses (
         ano_mes TEXT PRIMARY KEY, mes_label TEXT, periodo TEXT,
         receitas REAL, despesas REAL, agua REAL, rateio REAL,

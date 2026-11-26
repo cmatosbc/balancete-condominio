@@ -31,6 +31,15 @@ Condomínio21 / Brancalion).
   moradores votam em `/propostas` → tabela `votos`, 1 voto por unidade
   (UNIQUE proposta+unidade, votar de novo muda o voto; votos em
   propostas encerradas são rejeitados).
+  Unidades: tabela `unidades` semeia as 144 (blocos A1-A3, B1-B3 ×
+  andares 1-6 × aptos 1-4 → `BLOCO-ANDAR+NUM`, ex.: A3-11). Admin
+  marca atraso no desenho predial do `/admin`
+  (`POST /admin/unidade/<id>/atraso`) — unidade em atraso não vota
+  (403) e `/propostas` exibe aviso. Votos só aceitam unidades do
+  cadastro (formato validado server-side).
+  O banco usa WAL + `busy_timeout` (concorrência entre workers
+  gunicorn); `odb()` garante o schema só na 1ª chamada do processo —
+  não escrever em paths de leitura, senão "database is locked".
 - `Dockerfile` / `entrypoint.sh` / `docker-compose.yml` — imagem
   python+poppler+gunicorn; volume `/data`; PDFs de `pdfs/` semeiam o banco.
 - `data/` — artefatos de runtime do container (gitignored).

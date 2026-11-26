@@ -258,7 +258,7 @@
         <div class="wstat input-card">
           <div class="k">Edite com os valores do seu boleto</div>
           <div class="inp-row"><label for="inpTaxa">Taxa de condomínio</label><div class="inp-wrap"><span>R$</span><input id="inpTaxa" inputmode="decimal" autocomplete="off"></div></div>
-          <div class="inp-row"><label for="inpFundo">Fundo de reserva</label><div class="inp-wrap"><span>R$</span><input id="inpFundo" inputmode="decimal" autocomplete="off"></div></div>
+          <div class="inp-row"><label for="inpFundo">Fundo de reserva <span style="color:#7dd3fc;font-size:10px">10% da taxa</span></label><div class="inp-wrap"><span>R$</span><input id="inpFundo" inputmode="decimal" autocomplete="off" title="Preenchido automaticamente com 10% da taxa de condomínio — editável"></div></div>
           <div class="inp-total">Boleto total: <b id="boletoTotal">–</b></div>
         </div>
         <div class="wstat"><div class="k">Conta de água do mês</div><div class="v" id="wsAguaTotal">–</div><div class="d" id="wsAguaTotalD">–</div></div>
@@ -563,9 +563,13 @@ function recalc() {
   $('tbComp').textContent = NUM.format(taxa) + ' + ' + NUM.format(fundo);
 }
 [inpTaxa, inpFundo].forEach(inp => {
-  inp.addEventListener('input', recalc);
   inp.addEventListener('blur', () => { inp.value = NUM.format(parseBRL(inp.value)); });
 });
+inpTaxa.addEventListener('input', () => {
+  inpFundo.value = NUM.format(parseBRL(inpTaxa.value) * 0.10);
+  recalc();
+});
+inpFundo.addEventListener('input', recalc);
 
 /* ---------- Barras horizontais ---------- */
 function renderBars(id, items, suffix) {

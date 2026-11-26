@@ -48,8 +48,9 @@ app = Flask(__name__)
 app.secret_key = _secret_key()
 ADMIN_PW = os.environ.get('ADMIN_PASSWORD', '')
 MORADOR_PW = os.environ.get('MORADOR_PASSWORD', '')
-if not ADMIN_PW or not MORADOR_PW:
-    raise SystemExit('Defina ADMIN_PASSWORD e MORADOR_PASSWORD no ambiente.')
+if not ADMIN_PW:
+    raise SystemExit('Defina ADMIN_PASSWORD no ambiente. '
+                     '(MORADOR_PASSWORD é opcional — acesso genérico sem unidade.)')
 
 PAGE = """<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -76,6 +77,12 @@ PAGE = """<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
  textarea{min-height:110px;resize:vertical}
  label{display:block;color:#8a94a8;font-size:12px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px}
  .ugrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+ .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;
+  background:rgba(2,6,23,.5);border:1px solid rgba(148,163,184,.14);border-radius:11px;padding:5px}
+ .tab{padding:9px;border:none;border-radius:8px;background:transparent;color:#8a94a8;
+  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s}
+ .tab.on{background:linear-gradient(135deg,rgba(85,213,208,.2),rgba(118,169,255,.15));
+  color:#e8edf6;box-shadow:inset 0 0 0 1px rgba(85,213,208,.3)}
  button{margin-top:16px;width:100%;padding:12px;border-radius:10px;border:none;
   background:linear-gradient(135deg,#38bdf8,#818cf8);color:#0b1220;font-weight:700;
   font-size:14px;cursor:pointer}
@@ -125,31 +132,76 @@ def need_admin(f):
 def login():
     if role():
         return redirect('/')
+    blocos = ''.join(f'<option>{b}</option>' for b in BLOCOS)
+    aptos = ''.join(f'<option>{a}</option>' for a in sorted(APTOS))
+    msgs = {'e': 'Senha ou código incorreto — tente novamente.',
+            'unidade': 'Selecione bloco e apartamento.',
+            'semcodigo': 'Esta unidade ainda não tem código — peça à administração.'}
+    e = request.args.get('e', '')
+    err = f'<p class=err>{escape(msgs.get(e, msgs["e"]))}</p>' if e else ''
     return render_template_string(
         PAGE, titulo='Entrar',
-        body='<form class="card" method="post" action="/login">'
+        body='<div class="card">'
              '<div style="font-size:34px;text-align:center">🔒</div>'
              '<div class="eyebrow" style="text-align:center">Condomínio Elit\'s Park</div>'
              '<h1 style="text-align:center">Área dos condôminos</h1>'
-             '<p class="mut" style="text-align:center">Senha de condômino ou de administrador</p>'
-             f'{"<p class=err>Senha incorreta — tente novamente</p>" if request.args.get("e") else ""}'
-             '<input type="password" name="senha" placeholder="Senha" autofocus '
+             + err +
+             '<div class="tabs">'
+             '<button type="button" class="tab on" data-t="m">Sou morador</button>'
+             '<button type="button" class="tab" data-t="a">Administrador</button></div>'
+             '<form method="post" action="/login" id="fm">'
+             '<input type="hidden" name="modo" value="morador">'
+             '<label>Unidade</label><div class="ugrid">'
+             f'<select name="bloco" required><option value="">Bloco…</option>{blocos}</select>'
+             f'<select name="apto" required><option value="">Apto…</option>{aptos}</select></div>'
+             '<label>Código de acesso</label>'
+             '<input type="password" name="codigo" inputmode="numeric" maxlength="4" '
+             'placeholder="4 dígitos" required autocomplete="off">'
+             '<button type="submit">Entrar</button></form>'
+             '<form method="post" action="/login" id="fa" style="display:none">'
+             '<input type="hidden" name="modo" value="admin">'
+             '<label>Senha</label>'
+             '<input type="password" name="senha" placeholder="Senha de admin (ou acesso geral)" '
              'autocomplete="current-password">'
-             '<button type="submit">Entrar</button></form>')
+             '<button type="submit">Entrar</button></form>'
+             '<p class="mut" style="text-align:center;margin:14px 0 0">'
+             'Morador: use o código da sua unidade.<br>Não tem código? Peça à administração.</p>'
+             '<script>var fm=document.getElementById("fm"),fa=document.getElementById("fa");'
+             'document.querySelectorAll(".tab").forEach(function(t){t.addEventListener("click",function(){'
+             'document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("on")});'
+             't.classList.add("on");fm.style.display=t.dataset.t==="m"?"":"none";'
+             'fa.style.display=t.dataset.t==="a"?"":"none";});});</script>'
+             '</div>')
 
 
 @app.post('/login')
 def do_login():
-    pw = request.form.get('senha', '')
-    r = 'admin' if hmac.compare_digest(pw, ADMIN_PW) else \
-        'morador' if hmac.compare_digest(pw, MORADOR_PW) else None
-    if not r:
-        return redirect('/login?e=1')
-    session['role'] = r
+    if request.form.get('modo') == 'morador':
+        bloco = request.form.get('bloco', '').upper()
+        apto = request.form.get('apto', '')
+        uid = f'{bloco}-{apto}'
+        if bloco not in BLOCOS or apto not in APTOS:
+            return redirect('/login?e=unidade')
+        row = odb().execute('SELECT codigo FROM unidades WHERE unidade = ?',
+                            (uid,)).fetchone()
+        if not row or not row[0]:
+            return redirect('/login?e=semcodigo')
+        codigo = request.form.get('codigo', '').strip()
+        if not hmac.compare_digest(row[0], hashlib.sha256(codigo.encode()).hexdigest()):
+            return redirect('/login?e=e')
+        session['role'] = 'morador'
+        session['unidade'] = uid
+    else:
+        pw = request.form.get('senha', '')
+        r = 'admin' if hmac.compare_digest(pw, ADMIN_PW) else \
+            'morador' if MORADOR_PW and hmac.compare_digest(pw, MORADOR_PW) else None
+        if not r:
+            return redirect('/login?e=e')
+        session['role'] = r
     resp = redirect('/')
     # cookies-hint: senha.js não bloqueia quem já logou; nav mostra link Admin
     resp.set_cookie('cond_app', '1')
-    resp.set_cookie('cond_role', r)
+    resp.set_cookie('cond_role', session['role'])
     return resp
 
 
@@ -343,6 +395,11 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
  .code-out{margin-top:9px;padding:10px 12px;border-radius:10px;font-size:12.5px;
   background:rgba(85,213,208,.07);border:1px dashed rgba(85,213,208,.4);color:#b7c3d5}
  .code-out b{font-family:'Space Grotesk';font-size:16px;letter-spacing:2px;color:var(--cyan)}
+ .codbar{display:flex;align-items:center;gap:10px;margin-top:14px}
+ .code-list{margin-top:12px}
+ .code-list textarea{width:100%;height:170px;padding:10px;border-radius:10px;
+  border:1px solid var(--border);background:rgba(4,10,20,.55);color:var(--text);
+  font-family:ui-monospace,monospace;font-size:11.5px;resize:vertical}
  .b-tot{color:#66758b;font-size:9.5px;text-align:center;margin-top:8px}
  .empty{color:var(--muted);text-align:center;padding:32px 14px;font-size:13px}
  .section{margin-top:16px}
@@ -449,6 +506,11 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
    <span><i class="lg docb"></i>Ocorrência aberta</span>
    <span><i class="advb" style="position:static">!</i>Advertência</span>
   </div>
+  <div class="codbar"><span class="cod-st" id="codN"></span>
+   <button class="pbtn" id="codBtn">Gerar códigos pendentes</button></div>
+  <div id="codOut" class="code-list" style="display:none">
+   <div class="up-ocs-t">Códigos gerados — copie e distribua (não ficam salvos em texto puro)</div>
+   <textarea readonly id="codTxt"></textarea></div>
   <div id="unitPanel"></div>
  </section>
  <section class="section">
@@ -492,6 +554,7 @@ async function resumo() {
   renderProps(r.propostas);
   allAdvs = r.advertencias;
   codeSet = new Set(r.codigos);
+  $('codN').textContent = `${r.codigos.length}/144 códigos emitidos`;
   lastMapa = r.mapa;
   renderBlocks(r.mapa);
   $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
@@ -685,6 +748,18 @@ $('propList').addEventListener('click', async e => {
     if (!r.ok) throw new Error();
     await resumo();
   } catch { toast('Falha ao atualizar a proposta.', true); }
+});
+$('codBtn').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/admin/codigos/gerar', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
+    Object.assign(lastCode, j.novos);
+    $('codTxt').value = Object.entries(j.novos).map(([u, c]) => `${u}: ${c}`).join('\n');
+    $('codOut').style.display = j.total ? '' : 'none';
+    toast(j.total ? `${j.total} códigos gerados — copie a lista` : 'Todas as unidades já têm código.', !j.total);
+    await resumo();
+  } catch (err) { toast(err.message || 'Falha ao gerar códigos.', true); }
 });
 
 const drop = $('drop'), fileInp = $('fileInp'), st = $('upStatus');
@@ -903,8 +978,12 @@ def ocorrencia():
     erro = f'<p class="bad">⚠ {escape(request.args.get("erro", ""))}</p>' \
         if request.args.get('erro') else ''
     cats = ''.join(f'<option>{c}</option>' for c in CATEGORIAS)
-    blocos = ''.join(f'<option>{b}</option>' for b in BLOCOS)
-    aptos = ''.join(f'<option>{a}</option>' for a in sorted(APTOS))
+    ub = (session.get('unidade') or '').split('-')
+    blocos = ''.join(
+        f'<option{" selected" if ub[0] == b else ""}>{b}</option>' for b in BLOCOS)
+    aptos = ''.join(
+        f'<option{" selected" if len(ub) == 2 and ub[1] == a else ""}>{a}</option>'
+        for a in sorted(APTOS))
     return render_template_string(
         PAGE, titulo='Ocorrência',
         body=f'<div class="card"><div class="eyebrow">Livro de ocorrências</div>'
@@ -915,7 +994,7 @@ def ocorrencia():
              f'<label>Unidade (opcional)</label>'
              f'<div class="ugrid">'
              f'<select name="bloco" id="blocoSel"><option value="">Área comum / outra</option>{blocos}</select>'
-             f'<select name="apto" id="aptoSel" disabled><option value="">Apto…</option>{aptos}</select>'
+             f'<select name="apto" id="aptoSel"{"" if ub[0] in BLOCOS else " disabled"}><option value="">Apto…</option>{aptos}</select>'
              f'</div>'
              f'<label>Seu nome (opcional)</label>'
              f'<input type="text" name="nome" placeholder="Anônimo se vazio">'
@@ -982,6 +1061,23 @@ def remover_advertencia(aid):
     conn.execute('DELETE FROM advertencias WHERE id = ?', (aid,))
     conn.commit()
     return {'ok': True}
+
+
+@app.post('/admin/codigos/gerar')
+@need_admin
+def gerar_codigos():
+    """Emite código para toda unidade sem código; devolve a lista uma
+    vez (para distribuição) — no banco ficam só os hashes."""
+    conn = odb()
+    novos = {}
+    for (u,) in conn.execute(
+            'SELECT unidade FROM unidades WHERE codigo IS NULL ORDER BY unidade'):
+        c = f'{secrets.randbelow(9000) + 1000}'
+        conn.execute('UPDATE unidades SET codigo = ? WHERE unidade = ?',
+                     (hashlib.sha256(c.encode()).hexdigest(), u))
+        novos[u] = c
+    conn.commit()
+    return {'ok': True, 'novos': novos, 'total': len(novos)}
 
 
 @app.post('/admin/unidade/<uid>/codigo')
@@ -1143,6 +1239,15 @@ async function carregar() {
   const j = await r.json();
   props = j.propostas;
   emAtraso = j.unidade_em_atraso;
+  if (j.sessao_unidade && $('uBloco').value !== j.sessao_unidade.split('-')[0]) {
+    const [b, a] = j.sessao_unidade.split('-');
+    $('uBloco').value = b; $('uApto').value = a;
+  }
+  if (j.sessao_unidade) {
+    $('uBloco').disabled = $('uApto').disabled = true;
+    document.querySelector('.unit-hint').textContent =
+      `Votando como ${j.sessao_unidade} — unidade da sua sessão`;
+  }
   $('avisoAtraso').innerHTML = emAtraso
     ? '<div class="warn">⚠ <span>Unidade em atraso — a votação fica suspensa até a regularização com a administração.</span></div>'
     : '';
@@ -1206,7 +1311,7 @@ def propostas_page():
 @need_login
 def api_propostas():
     conn = odb()
-    unidade = request.args.get('unidade', '').strip().upper()
+    unidade = session.get('unidade') or request.args.get('unidade', '').strip().upper()
     mine = {}
     em_atraso = False
     if unidade:
@@ -1215,7 +1320,8 @@ def api_propostas():
         u = conn.execute(
             'SELECT em_atraso FROM unidades WHERE unidade = ?', (unidade,)).fetchone()
         em_atraso = bool(u and u[0])
-    return {'unidade_em_atraso': em_atraso, 'propostas': [
+    return {'unidade_em_atraso': em_atraso,
+            'sessao_unidade': session.get('unidade'), 'propostas': [
         {'id': i, 'criado': c, 'titulo': t, 'descricao': d, 'aberta': bool(ab),
          'favor': f, 'contra': co, 'meu_voto': mine.get(i)}
         for i, c, t, d, ab, f, co in propostas_rows(conn)]}
@@ -1224,7 +1330,7 @@ def api_propostas():
 @app.post('/proposta/<int:pid>/voto')
 @need_login
 def votar(pid):
-    unidade = request.form.get('unidade', '').strip().upper()
+    unidade = session.get('unidade') or request.form.get('unidade', '').strip().upper()
     voto = request.form.get('voto', '')
     if not unidade or voto not in ('favor', 'contra'):
         return {'ok': False, 'msg': 'Informe sua unidade e escolha uma opção.'}, 400
@@ -1367,6 +1473,24 @@ def perfil():
     """Perfil da unidade: exige unidade + código (admin gera por unidade).
     Advertências da administração só aparecem aqui."""
     uid = session.get('unidade')
+    admin_preview = False
+    if not uid and role() == 'admin':
+        sel = request.args.get('unidade', '').upper()
+        todas = [u for u, in odb().execute('SELECT unidade FROM unidades ORDER BY unidade')]
+        if sel in todas:
+            uid, admin_preview = sel, True
+        else:
+            opts = ''.join(f'<option>{u}</option>' for u in todas)
+            return render_template_string(
+                PAGE, titulo='Perfis',
+                body=f'<div class="card"><div class="eyebrow">Administração</div>'
+                     f'<h1>Inspecionar perfil</h1>'
+                     f'<p class="mut">Escolha a unidade para ver o que o morador vê.</p>'
+                     f'<form method="get"><label>Unidade</label>'
+                     f'<select name="unidade" required><option value="">Selecione…</option>{opts}</select>'
+                     f'<button type="submit">Ver perfil</button></form>'
+                     f'<div class="links"><a href="/admin">← Admin</a>'
+                     f'<a href="/logout">Sair</a></div></div>')
     if not uid:
         blocos = ''.join(f'<option>{b}</option>' for b in BLOCOS)
         aptos = ''.join(f'<option>{a}</option>' for a in sorted(APTOS))
@@ -1426,10 +1550,12 @@ def perfil():
         f'<div class="oc-side"><time>{escape(c[:10])}</time>'
         f'<span class="tag {"ok" if r else "op"}">{"resolvida" if r else "aberta"}</span></div></div>'
         for c, cat, t, r in ocs) or '<div class="empty">Você ainda não registrou ocorrências.</div>'
+    trocar = ('<a class="link2" href="/perfil">escolher outra unidade</a>'
+              if admin_preview else '<a class="link2" href="/perfil/sair">trocar unidade</a>')
     return PERFIL_HEAD + f"""
  <section class="intro"><h2>{escape(uid)}</h2>
   <p class="mut2">Bloco {escape(bloco)} · {escape(num[0])}º andar · Apto {escape(num)}
-   · <a class="link2" href="/perfil/sair">trocar unidade</a></p></section>
+   {('· <b style="color:var(--amber)">visão do administrador</b> · ') if admin_preview else '· '}{trocar}</p></section>
  <div class="sect"><h3>Advertências da administração</h3>{adv_html}</div>
  <div class="sect"><h3>Situação da unidade</h3>{st_html}</div>
  <div class="sect"><h3>Suas ocorrências registradas</h3>{ocs_html}</div>

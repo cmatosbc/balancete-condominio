@@ -20,9 +20,15 @@ Condomínio21 / Brancalion).
 - `senha.js` — portão de senha VISUAL para o modo estático/Pages
   (senha `elitspark2026`, hash SHA-256 em `EXPECTED`; no modo Docker o
   cookie `cond_app` pula o portão — a sessão do app é a auth real).
-- `app.py` — servidor Flask (Docker): login por senha com 2 níveis
-  (`ADMIN_PASSWORD`/`MORADOR_PASSWORD` no env), `/admin` + `POST /upload`
-  só para admin, `SECRET_KEY` persistida em `DATA_DIR/.secret_key`.
+- `app.py` — servidor Flask (Docker): login com 2 níveis — admin usa
+  `ADMIN_PASSWORD` (acesso total, `/admin` + `POST /upload`); morador
+  usa bloco+apto+código de 4 dígitos da unidade (sha256 no banco;
+  `session['unidade']` vinculada → voto usa a unidade da sessão,
+  `/perfil` direto, selects pré-preenchidos). `MORADOR_PASSWORD` é
+  opcional — aba "Administrador" aceita essa senha como acesso
+  genérico sem unidade (transição). `SECRET_KEY` em `DATA_DIR/.secret_key`.
+  `POST /admin/codigos/gerar` emite códigos para todas as unidades sem
+  código e devolve a lista uma única vez (para distribuição).
   Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
   `ocorrencias` → listadas no `/admin`; admin alterna `resolvida` via
   `POST /admin/ocorrencia/<id>/resolver`.

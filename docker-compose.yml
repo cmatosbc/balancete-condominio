@@ -15,6 +15,10 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # Envio de códigos por WhatsApp via Evolution API self-hosted (opcional)
+      EVO_URL: ${EVO_URL:-}
+      EVO_KEY: ${EVO_KEY:-}
+      EVO_INSTANCE: ${EVO_INSTANCE:-}
     volumes:
       - ./data:/data
     restart: unless-stopped

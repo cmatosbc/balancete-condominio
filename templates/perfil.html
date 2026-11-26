@@ -71,6 +71,26 @@
  </section>
 
  <section class="ep-card mb-5">
+  <h3 class="ep-title mb-1 text-base">Contato da unidade</h3>
+  <p class="mb-3 text-xs text-slate-400">Usado para receber o código de
+   acesso e avisos da administração.</p>
+  {% if contato == 'ok' %}<p class="ep-note-ok mb-3">✓ Contato atualizado.</p>{% endif %}
+  {% if contato and contato != 'ok' %}<p class="ep-note-bad mb-3">⚠ {{ contato }}</p>{% endif %}
+  <form method="post" action="/perfil/contato">
+   <input type="hidden" name="unidade" value="{{ uid }}">
+   <div class="grid gap-3 sm:grid-cols-2">
+    <div><label class="ep-label">E-mail</label>
+     <input type="email" name="email" maxlength="120" class="ep-input"
+      value="{{ email or '' }}" placeholder="sem e-mail cadastrado"></div>
+    <div><label class="ep-label">Telefone / WhatsApp</label>
+     <input type="tel" name="telefone" maxlength="20" class="ep-input"
+      value="{{ fone or '' }}" placeholder="19 99999-8888"></div>
+   </div>
+   <button type="submit" class="ep-btn-ghost ep-btn-xs mt-3">Salvar contato</button>
+  </form>
+ </section>
+
+ <section class="ep-card mb-5">
   <h3 class="ep-title mb-3 text-base">Advertências da administração</h3>
   {% if advs %}
    {% for c, t in advs %}

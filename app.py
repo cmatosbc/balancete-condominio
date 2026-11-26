@@ -12,10 +12,12 @@ Prod:  gunicorn -b 0.0.0.0:8000 -w 2 app:app
 """
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import smtplib
 import urllib.parse
+import urllib.request
 from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
@@ -188,6 +190,9 @@ def api_resumo():
             'SELECT unidade FROM unidades WHERE codigo IS NOT NULL')],
         'emails': {u: e for u, e in odb().execute(
             'SELECT unidade, email FROM unidades WHERE email IS NOT NULL')},
+        'telefones': {u: fmt_fone(t) for u, t in odb().execute(
+            'SELECT unidade, telefone FROM unidades WHERE telefone IS NOT NULL')},
+        'evo': evo_ok(),
         'mapa': mapa_unidades(odb())}
 
 
@@ -251,10 +256,41 @@ UFLAGS = {'a': 'em_atraso', 'mi': 'mud_in', 'mo': 'mud_out', 'i': 'idoso75'}
 
 SMTP = {k: os.environ.get(f'SMTP_{k}', '') for k in ('HOST', 'PORT', 'USER', 'PASS', 'FROM')}
 PUBLIC_URL = os.environ.get('PUBLIC_URL', 'http://localhost:8080')
+EVO = {k: os.environ.get(f'EVO_{k}', '') for k in ('URL', 'KEY', 'INSTANCE')}
 
 
 def smtp_ok():
     return bool(SMTP['HOST'] and SMTP['FROM'] and (not SMTP['USER'] or SMTP['PASS']))
+
+
+def norm_fone(s):
+    """Telefone → dígitos internacionais (55+DDD+número). Vazio → None."""
+    d = ''.join(c for c in (s or '') if c.isdigit())
+    if not d:
+        return None
+    if len(d) in (10, 11):          # DDD + número local
+        d = '55' + d
+    if not (d.startswith('55') and len(d) in (12, 13)):
+        raise ValueError('Telefone deve ser DDD + número (ex.: 19 99999-8888)')
+    return d
+
+
+def fmt_fone(d):
+    """5519999998888 → '+55 19 99999-8888' para exibição."""
+    if not d:
+        return ''
+    if len(d) == 13:
+        return f'+{d[:2]} {d[2:4]} {d[4:9]}-{d[9:]}'
+    if len(d) == 12:
+        return f'+{d[:2]} {d[2:4]} {d[4:8]}-{d[8:]}'
+    return d
+
+
+def norm_email(s):
+    s = (s or '').strip().lower()
+    if s and ('@' not in s or len(s) > 120):
+        raise ValueError('E-mail inválido.')
+    return s or None
 
 
 def enviar_codigo(unidade, email, codigo):
@@ -278,6 +314,28 @@ def enviar_codigo(unidade, email, codigo):
         if SMTP['USER']:
             s.login(SMTP['USER'], SMTP['PASS'])
         s.send_message(msg)
+
+
+def evo_ok():
+    """Evolution API configurada (self-hosted) — URL + apikey + instância."""
+    return all(EVO.values())
+
+
+def enviar_codigo_whatsapp(unidade, fone, codigo):
+    """Envia o código temporário por WhatsApp via Evolution API.
+    `fone` já vem normalizado (55+DDD+número) — formato aceito pelo endpoint."""
+    texto = (f"Condomínio Elit's Park — unidade {unidade}\n\n"
+             f"Seu código de acesso ao portal: *{codigo}*\n\n"
+             f"Entre em {PUBLIC_URL} (aba \"Sou morador\"): selecione bloco "
+             f"e apartamento e informe o código. No primeiro acesso você "
+             f"define sua senha pessoal — o código expira após a troca.")
+    payload = json.dumps(
+        {'number': fone, 'textMessage': {'text': texto}}).encode()
+    req = urllib.request.Request(
+        f"{EVO['URL'].rstrip('/')}/message/sendText/{EVO['INSTANCE']}",
+        data=payload,
+        headers={'Content-Type': 'application/json', 'apikey': EVO['KEY']})
+    urllib.request.urlopen(req, timeout=15).read()
 
 
 _db_ready = False
@@ -312,7 +370,7 @@ def odb():
         unidade TEXT PRIMARY KEY, em_atraso INTEGER DEFAULT 0,
         mud_in INTEGER DEFAULT 0, mud_out INTEGER DEFAULT 0,
         idoso75 INTEGER DEFAULT 0, codigo TEXT, email TEXT,
-        senha_temp INTEGER DEFAULT 1)""")
+        telefone TEXT, senha_temp INTEGER DEFAULT 1)""")
     cols = {r[1] for r in conn.execute('PRAGMA table_info(unidades)')}
     for col in ('mud_in', 'mud_out', 'idoso75', 'senha_temp'):
         if col not in cols:
@@ -321,6 +379,8 @@ def odb():
         conn.execute('ALTER TABLE unidades ADD COLUMN codigo TEXT')
     if 'email' not in cols:
         conn.execute('ALTER TABLE unidades ADD COLUMN email TEXT')
+    if 'telefone' not in cols:
+        conn.execute('ALTER TABLE unidades ADD COLUMN telefone TEXT')
     conn.executemany(
         'INSERT OR IGNORE INTO unidades(unidade) VALUES (?)',
         [(f'{b}-{f}{n}',) for b in BLOCOS
@@ -493,15 +553,24 @@ def gerar_codigo(uid):
 @app.post('/admin/unidade/<uid>/email')
 @need_admin
 def salvar_email(uid):
-    email = request.form.get('email', '').strip().lower()
-    if email and ('@' not in email or len(email) > 120):
-        return {'ok': False, 'msg': 'E-mail inválido.'}, 400
+    """Contato da unidade (admin): e-mail e/ou telefone. Campos ausentes
+    no form não são alterados; campo presente vazio limpa o valor."""
+    try:
+        email = norm_email(request.form['email']) if 'email' in request.form else ...
+        fone = norm_fone(request.form['telefone']) if 'telefone' in request.form else ...
+    except ValueError as e:
+        return {'ok': False, 'msg': str(e)}, 400
     conn = odb()
-    cur = conn.execute('UPDATE unidades SET email = ? WHERE unidade = ?',
-                       (email or None, uid.upper()))
-    conn.commit()
-    if not cur.rowcount:
+    if not conn.execute('SELECT 1 FROM unidades WHERE unidade = ?',
+                        (uid.upper(),)).fetchone():
         return {'ok': False, 'msg': 'Unidade desconhecida.'}, 404
+    if email is not ...:
+        conn.execute('UPDATE unidades SET email = ? WHERE unidade = ?',
+                     (email, uid.upper()))
+    if fone is not ...:
+        conn.execute('UPDATE unidades SET telefone = ? WHERE unidade = ?',
+                     (fone, uid.upper()))
+    conn.commit()
     return {'ok': True}
 
 
@@ -528,6 +597,30 @@ def enviar_codigo_email(uid):
                  (hashlib.sha256(codigo.encode()).hexdigest(), uid))
     conn.commit()
     return {'ok': True, 'msg': f'Código enviado para {row[0]}'}
+
+
+@app.post('/admin/unidade/<uid>/whatsapp/enviar')
+@need_admin
+def enviar_codigo_whatsapp_route(uid):
+    """Mesmo fluxo do envio por e-mail, via WhatsApp (Evolution API)."""
+    uid = uid.upper()
+    conn = odb()
+    row = conn.execute('SELECT telefone FROM unidades WHERE unidade = ?',
+                       (uid,)).fetchone()
+    if not row or not row[0]:
+        return {'ok': False, 'msg': 'Cadastre o telefone da unidade primeiro.'}, 400
+    if not evo_ok():
+        return {'ok': False,
+                'msg': 'Evolution API não configurada (EVO_URL/KEY/INSTANCE no env).'}, 400
+    codigo = f'{secrets.randbelow(9000) + 1000}'
+    try:
+        enviar_codigo_whatsapp(uid, row[0], codigo)
+    except Exception as e:
+        return {'ok': False, 'msg': f'Falha ao enviar: {e}'}, 502
+    conn.execute('UPDATE unidades SET codigo = ?, senha_temp = 1 WHERE unidade = ?',
+                 (hashlib.sha256(codigo.encode()).hexdigest(), uid))
+    conn.commit()
+    return {'ok': True, 'msg': f'Código enviado por WhatsApp para {fmt_fone(row[0])}'}
 
 
 @app.post('/admin/codigos/email')
@@ -667,8 +760,8 @@ def perfil():
             blocos=BLOCOS, aptos=sorted(APTOS))
     conn = odb()
     fl = conn.execute(
-        'SELECT em_atraso, mud_in, mud_out, idoso75 FROM unidades WHERE unidade = ?',
-        (uid,)).fetchone()
+        'SELECT em_atraso, mud_in, mud_out, idoso75, email, telefone '
+        'FROM unidades WHERE unidade = ?', (uid,)).fetchone()
     advs = conn.execute(
         'SELECT criado_em, texto FROM advertencias WHERE unidade = ? ORDER BY id DESC',
         (uid,)).fetchall()
@@ -678,9 +771,12 @@ def perfil():
     bloco, num = uid.split('-')
     flags = {'a': bool(fl[0]), 'mi': bool(fl[1]),
              'mo': bool(fl[2]), 'i': bool(fl[3])} if fl else {}
+    contato = request.args.get('contato')
     return render_template('perfil.html', uid=uid, bloco=bloco, num=num,
                            admin_preview=admin_preview, flags=flags,
-                           advs=advs, ocs=ocs,
+                           advs=advs, ocs=ocs, contato=contato,
+                           email=fl[4] if fl else None,
+                           fone=fmt_fone(fl[5]) if fl else '',
                            heading='Minha unidade', active='perfil')
 
 
@@ -711,6 +807,30 @@ def perfil_acesso():
 def perfil_sair():
     session.pop('unidade', None)
     return redirect('/perfil')
+
+
+@app.post('/perfil/contato')
+@need_login
+def perfil_contato():
+    """Morador atualiza o contato da própria unidade; admin também pode
+    (é morador) — inclusive na pré-visualização de outra unidade."""
+    uid = request.form.get('unidade', '').upper()
+    if uid != session.get('unidade') and role() != 'admin':
+        return {'ok': False, 'msg': 'Sem permissão.'}, 403
+    conn = odb()
+    if not conn.execute('SELECT 1 FROM unidades WHERE unidade = ?',
+                        (uid,)).fetchone():
+        return redirect('/perfil?contato=Unidade+desconhecida')
+    try:
+        email = norm_email(request.form.get('email'))
+        fone = norm_fone(request.form.get('telefone'))
+    except ValueError as e:
+        return redirect('/perfil?' + urllib.parse.urlencode(
+            {'unidade': uid, 'contato': str(e)}))
+    conn.execute('UPDATE unidades SET email = ?, telefone = ? WHERE unidade = ?',
+                 (email, fone, uid))
+    conn.commit()
+    return redirect(f'/perfil?unidade={uid}&contato=ok')
 
 
 @app.get('/dados.js')

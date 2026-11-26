@@ -57,11 +57,22 @@ build (não é mais CSS escrito à mão).
   código e devolve a lista uma única vez (para distribuição).
   E-mail: `unidades.email` + envio via SMTP (env `SMTP_HOST/PORT/
   USER/PASS/FROM`, `PUBLIC_URL`) — `POST /admin/unidade/<id>/email`
-  cadastra, `/…/email/enviar` envia código temporário (também serve
-  como reset: regenera `senha_temp=1`), `POST /admin/codigos/email`
+  cadastra contato (`email` e/ou `telefone`; campo ausente não muda,
+  vazio limpa), `/…/email/enviar` envia código temporário (também
+  serve como reset: regenera `senha_temp=1`), `POST /admin/codigos/email`
   envia em massa só para unidades com e-mail e `senha_temp=1`. Sem
   SMTP configurado, as rotas retornam 400 explicativo — vale o
   "Gerar código" manual.
+  Telefone: `unidades.telefone` guarda dígitos `55+DDD+número`
+  (`norm_fone`/`fmt_fone` no app.py); morador edita o próprio contato
+  em `/perfil` (`POST /perfil/contato` — própria unidade ou admin).
+  WhatsApp: `POST /admin/unidade/<id>/whatsapp/enviar` envia código
+  temporário via Evolution API self-hosted (env `EVO_URL/KEY/INSTANCE`,
+  endpoint `/message/sendText/{instance}`). A licença da Evolution API
+  (Apache 2.0 + condições) exige aviso visível a admins de que ela é
+  usada — o painel da unidade mostra essa nota quando `evo=true` no
+  `/api/resumo`. Sem Evolution configurada, a rota retorna 400
+  explicativo e o botão fica desabilitado.
   Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
   `ocorrencias` → listadas no `/admin`; admin alterna `resolvida` via
   `POST /admin/ocorrencia/<id>/resolver`.

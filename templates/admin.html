@@ -124,6 +124,8 @@ async function resumo() {
   allAdvs = r.advertencias;
   codeSet = new Set(r.codigos);
   uEmails = r.emails || {};
+  uFones = r.telefones || {};
+  evoOk = !!r.evo;
   $('codN').textContent = `${r.codigos.length}/144 códigos emitidos`;
   lastMapa = r.mapa;
   renderBlocks(r.mapa);
@@ -172,7 +174,7 @@ function renderProps(props) {
 }
 
 const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
-let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {}, uEmails = {};
+let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {}, uEmails = {}, uFones = {}, evoOk = false;
 const FLAG_TXT = { a: 'em atraso', mi: 'mudança (entrada)', mo: 'mudança (saída)', i: 'idoso 75+' };
 const TRUCK = c => `<svg width="12" height="9" viewBox="0 0 24 18" fill="${c}" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>`;
 const CROSS = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>';
@@ -230,13 +232,24 @@ function renderUnitPanel() {
       <button class="text-[15px] leading-none text-slate-500 transition hover:text-rose-300" data-advdel="${a.id}" title="Remover">×</button></span></div>`).join('')
      : '<div class="text-xs text-slate-500">Nenhuma registrada.</div>'}
    </div>
-   <div class="ep-sec"><div class="ep-sec-t">E-mail do morador</div>
-    <div class="flex gap-2"><input type="email" id="mailInp" maxlength="120" class="ep-input-sm flex-1"
+   <div class="ep-sec"><div class="ep-sec-t">Contato do morador</div>
+    <div class="mb-2 grid grid-cols-2 gap-2">
+     <input type="email" id="mailInp" maxlength="120" class="ep-input-sm"
       placeholder="email@exemplo.com" value="${esc(uEmails[selUnit] || '')}">
-     <button class="ep-btn-ghost ep-btn-xs" data-mail>Salvar</button>
+     <input type="tel" id="foneInp" maxlength="20" class="ep-input-sm"
+      placeholder="Tel: 19 99999-8888" value="${esc(uFones[selUnit] || '')}">
+    </div>
+    <div class="flex flex-wrap gap-2"><button class="ep-btn-ghost ep-btn-xs" data-mail>Salvar contato</button>
      <button class="ep-btn-brand ep-btn-xs" data-mailsend ${uEmails[selUnit] ? '' : 'disabled'}
-      title="Gera código temporário e envia por e-mail (também redefine a senha)">Enviar código</button></div>
-    ${!uEmails[selUnit] ? '<div class="mt-1 text-[10.5px] text-slate-500">Salve o e-mail para habilitar o envio.</div>' : ''}
+      title="Gera código temporário e envia por e-mail (também redefine a senha)">Enviar por e-mail</button>
+     <button class="ep-btn-favor ep-btn-xs" data-wasend ${uFones[selUnit] && evoOk ? '' : 'disabled'}
+      title="Gera código temporário e envia por WhatsApp via Evolution API (também redefine a senha)">Enviar WhatsApp</button></div>
+    ${(!uEmails[selUnit] || !uFones[selUnit] || !evoOk) ? `<div class="mt-1 text-[10.5px] text-slate-500">${[
+      !uEmails[selUnit] && 'salve o e-mail p/ envio por e-mail',
+      !uFones[selUnit] && 'salve o telefone p/ WhatsApp',
+      uFones[selUnit] && !evoOk && 'WhatsApp: configure EVO_URL/KEY/INSTANCE no env']
+      .filter(Boolean).join(' · ')}</div>` : ''}
+    ${evoOk ? '<div class="mt-1 text-[10px] text-slate-600">Envios por WhatsApp via Evolution API.</div>' : ''}
    </div>
    <div class="ep-sec"><div class="ep-sec-t">Código de acesso do morador</div>
     <div class="flex items-center gap-2.5"><span class="text-[11.5px] ${hasCode ? 'text-emerald-300' : 'text-slate-400'}">${hasCode ? '✓ Código ativo' : 'Sem código — o morador não acessa o perfil'}</span>
@@ -294,16 +307,24 @@ $('unitPanel').addEventListener('click', async e => {
       return;
     }
     if (e.target.closest('[data-mail]')) {
-      const inp = $('mailInp'), email = inp.value.trim();
-      const fd = new FormData(); fd.append('email', email);
+      const fd = new FormData();
+      fd.append('email', $('mailInp').value.trim());
+      fd.append('telefone', $('foneInp').value.trim());
       const r = await fetch(`/admin/unidade/${selUnit}/email`, { method: 'POST', body: fd });
       const j = await r.json();
-      toast(j.msg || (email ? `E-mail de ${selUnit} salvo.` : `E-mail de ${selUnit} removido.`), !r.ok || !j.ok);
+      toast(j.msg || `Contato de ${selUnit} salvo.`, !r.ok || !j.ok);
       if (r.ok && j.ok) await resumo();
       return;
     }
     if (e.target.closest('[data-mailsend]')) {
       const r = await fetch(`/admin/unidade/${selUnit}/email/enviar`, { method: 'POST' });
+      const j = await r.json();
+      toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
+      return;
+    }
+    if (e.target.closest('[data-wasend]')) {
+      const r = await fetch(`/admin/unidade/${selUnit}/whatsapp/enviar`, { method: 'POST' });
       const j = await r.json();
       toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
       if (r.ok && j.ok) await resumo();

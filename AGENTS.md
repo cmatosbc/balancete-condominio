@@ -32,11 +32,15 @@ Condomínio21 / Brancalion).
   (UNIQUE proposta+unidade, votar de novo muda o voto; votos em
   propostas encerradas são rejeitados).
   Unidades: tabela `unidades` semeia as 144 (blocos A1-A3, B1-B3 ×
-  andares 1-6 × aptos 1-4 → `BLOCO-ANDAR+NUM`, ex.: A3-11). Admin
-  marca atraso no desenho predial do `/admin`
-  (`POST /admin/unidade/<id>/atraso`) — unidade em atraso não vota
-  (403) e `/propostas` exibe aviso. Votos só aceitam unidades do
-  cadastro (formato validado server-side).
+  andares 1-6 × aptos 1-4 → `BLOCO-ANDAR+NUM`, ex.: A3-11). Desenho
+  predial no `/admin`: clique abre painel da unidade com checkboxes —
+  `em_atraso` (sem voto, 403 + aviso em `/propostas`), `mud_in`,
+  `mud_out`, `idoso75` (`POST /admin/unidade/<id>/flag` com
+  `flag=a|mi|mo|i`). Badge âmbar na célula = nº de ocorrências abertas
+  (derivado de `ocorrencias.unidade`, resolvida=0). `/api/resumo`
+  devolve `mapa` só com unidades flaggeadas. Ocorrência e voto usam
+  selects bloco+apto — unidade sempre válida (`APTOS`/`BLOCOS` no
+  app.py); "área comum" grava unidade NULL.
   O banco usa WAL + `busy_timeout` (concorrência entre workers
   gunicorn); `odb()` garante o schema só na 1ª chamada do processo —
   não escrever em paths de leitura, senão "database is locked".

@@ -321,20 +321,26 @@ def evo_ok():
     return all(EVO.values())
 
 
-def enviar_codigo_whatsapp(unidade, fone, codigo):
-    """Envia o código temporário por WhatsApp via Evolution API.
-    `fone` já vem normalizado (55+DDD+número) — formato aceito pelo endpoint."""
-    texto = (f"Condomínio Elit's Park — unidade {unidade}\n\n"
-             f"Seu código de acesso ao portal: *{codigo}*\n\n"
-             f"Entre em {PUBLIC_URL} (aba \"Sou morador\"): selecione bloco "
-             f"e apartamento e informe o código. No primeiro acesso você "
-             f"define sua senha pessoal — o código expira após a troca.")
-    payload = json.dumps({'number': fone, 'text': texto}).encode()
+def enviar_whatsapp(number, texto):
+    """POST /message/sendText/{instance} — number = dígitos (55…) ou JID."""
+    payload = json.dumps({'number': number, 'text': texto}).encode()
     req = urllib.request.Request(
         f"{EVO['URL'].rstrip('/')}/message/sendText/{EVO['INSTANCE']}",
         data=payload,
         headers={'Content-Type': 'application/json', 'apikey': EVO['KEY']})
     urllib.request.urlopen(req, timeout=15).read()
+
+
+def enviar_codigo_whatsapp(unidade, fone, codigo):
+    """Envia o código temporário por WhatsApp via Evolution API.
+    `fone` já vem normalizado (55+DDD+número) — formato aceito pelo endpoint."""
+    enviar_whatsapp(
+        fone,
+        f"Condomínio Elit's Park — unidade {unidade}\n\n"
+        f"Seu código de acesso ao portal: *{codigo}*\n\n"
+        f"Entre em {PUBLIC_URL} (aba \"Sou morador\"): selecione bloco "
+        f"e apartamento e informe o código. No primeiro acesso você "
+        f"define sua senha pessoal — o código expira após a troca.")
 
 
 _db_ready = False
@@ -620,6 +626,131 @@ def enviar_codigo_whatsapp_route(uid):
                  (hashlib.sha256(codigo.encode()).hexdigest(), uid))
     conn.commit()
     return {'ok': True, 'msg': f'Código enviado por WhatsApp para {fmt_fone(row[0])}'}
+
+
+# ---------------- WhatsApp: mensagens recebidas (webhook Evolution) ----------------
+
+WA_HELP = ("🤖 *Portaria virtual — Condomínio Elit's Park*\n\n"
+           "Comandos:\n"
+           "• *OCORRENCIA* <relato> — registra no livro de ocorrências\n"
+           "• *VOTACAO* — lista as votações abertas\n"
+           "• *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*\n"
+           "• *AJUDA* — esta mensagem")
+
+
+def _wa_reply(number, texto):
+    """Resposta best-effort — falha de envio nunca derruba o webhook."""
+    try:
+        enviar_whatsapp(number, texto)
+    except Exception:
+        pass
+
+
+def _wa_comando(conn, cmd, resto, uid, nome):
+    """Executa o comando do morador e devolve a resposta (ou None)."""
+    if cmd in ('OCORRENCIA', 'OCORRÊNCIA', 'RECLAMACAO', 'RECLAMAÇÃO'):
+        if not uid:
+            return ('⚠️ Seu número não está vinculado a uma unidade — '
+                    'peça à administração para cadastrar seu telefone no perfil.')
+        if not resto:
+            return ('Envie *OCORRENCIA* seguido do relato.\n'
+                    'Ex.: OCORRENCIA vazamento na garagem G2')
+        conn.execute('INSERT INTO ocorrencias(unidade, nome, categoria, texto) '
+                     'VALUES (?,?,?,?)', (uid, nome or None, 'whatsapp', resto[:1000]))
+        conn.commit()
+        return (f'✅ Ocorrência registrada no livro ({uid}) — '
+                f'a administração acompanha pelo painel.')
+    if cmd in ('VOTACAO', 'VOTAÇÃO', 'VOTACOES', 'VOTAÇÕES', 'PAUTA', 'PROPOSTAS'):
+        rows = conn.execute('SELECT id, titulo FROM propostas WHERE aberta = 1 '
+                            'ORDER BY id').fetchall()
+        if not rows:
+            return 'Nenhuma votação aberta no momento.'
+        linhas = '\n'.join(f'*{i}* — {t}' for i, t in rows)
+        return (f'🗳️ *Votações abertas:*\n{linhas}\n\n'
+                f'Responda *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*.')
+    if cmd == 'VOTAR':
+        if not uid:
+            return ('⚠️ Seu número não está vinculado a uma unidade — '
+                    'peça à administração para cadastrar seu telefone no perfil.')
+        m = resto.split()
+        pid = int(m[0]) if m and m[0].isdigit() else 0
+        op = m[1].upper() if len(m) > 1 else ''
+        voto = 'favor' if op.startswith('F') else 'contra' if op.startswith('C') else ''
+        if not pid or not voto:
+            return ('Formato: *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*. '
+                    'Veja os números com *VOTACAO*.')
+        u = conn.execute('SELECT em_atraso FROM unidades WHERE unidade = ?',
+                         (uid,)).fetchone()
+        if u and u[0]:
+            return '🚫 Unidade em atraso — regularize com a administração para votar.'
+        p = conn.execute('SELECT titulo, aberta FROM propostas WHERE id = ?',
+                         (pid,)).fetchone()
+        if not p:
+            return 'Proposta não encontrada — veja as abertas com *VOTACAO*.'
+        if not p[1]:
+            return f'A votação *{p[0]}* já está encerrada.'
+        conn.execute(
+            """INSERT INTO votos(proposta_id, unidade, voto) VALUES (?,?,?)
+               ON CONFLICT(proposta_id, unidade) DO UPDATE SET voto = excluded.voto""",
+            (pid, uid, voto))
+        conn.commit()
+        f, c = conn.execute(
+            "SELECT SUM(voto='favor'), SUM(voto='contra') FROM votos "
+            'WHERE proposta_id = ?', (pid,)).fetchone()
+        return (f'✅ Voto *{"a favor" if voto == "favor" else "contra"}* '
+                f'de {uid} registrado na proposta *{p[0]}*.\n'
+                f'Placar: {f or 0}× favor · {c or 0}× contra.')
+    if cmd in ('AJUDA', 'MENU', 'OI', 'OLA', 'OLÁ', 'BOM', 'BOA',
+               'INICIO', 'INÍCIO', 'START'):
+        return WA_HELP
+    return 'Comando não reconhecido. Responda *AJUDA* para ver os comandos.'
+
+
+@app.post('/webhook/whatsapp')
+def webhook_whatsapp():
+    """Endpoint do webhook da Evolution API (evento MESSAGES_UPSERT).
+    Auth: header apikey = EVO_KEY (ou ?key=). Mensagens de texto viram
+    comandos da portaria virtual — ver _wa_comando."""
+    if not evo_ok():
+        return {'ok': False}, 404
+    if (request.headers.get('apikey') != EVO['KEY']
+            and request.args.get('key') != EVO['KEY']):
+        return {'ok': False}, 401
+    body = request.get_json(silent=True) or {}
+    if (body.get('event') or '').lower() != 'messages.upsert':
+        return {'ok': True, 'skipped': body.get('event') or 'no-event'}
+    data = body.get('data') or {}
+    key = data.get('key') or {}
+    jid = key.get('remoteJid') or ''
+    if (key.get('fromMe') or jid.endswith('@g.us')
+            or jid == 'status@broadcast'):
+        return {'ok': True, 'skipped': 'self/group/broadcast'}
+    msg = data.get('message') or {}
+    texto = (msg.get('conversation')
+             or (msg.get('extendedTextMessage') or {}).get('text')
+             or '').strip()
+    if not texto:
+        return {'ok': True, 'skipped': 'non-text'}
+    digits = ''.join(c for c in jid.split('@')[0] if c.isdigit())
+    if jid.endswith('@lid'):  # JID privado — telefone real vem em senderPn
+        alt = key.get('senderPn') or key.get('remoteJidAlt') or ''
+        digits = ''.join(c for c in alt if c.isdigit()) or digits
+    conn = odb()
+    row = conn.execute('SELECT unidade FROM unidades WHERE telefone = ?',
+                       (digits,)).fetchone() if digits else None
+    uid = row[0] if row else None
+    nome = (data.get('pushName') or '').strip()
+    parts = texto.split(None, 1)
+    cmd = parts[0].upper().strip('.,!;:*')
+    resto = parts[1].strip() if len(parts) > 1 else ''
+    reply_to = digits or jid
+    try:
+        resposta = _wa_comando(conn, cmd, resto, uid, nome)
+    except Exception:
+        resposta = None
+    if resposta:
+        _wa_reply(reply_to, resposta)
+    return {'ok': True}
 
 
 @app.post('/admin/codigos/email')

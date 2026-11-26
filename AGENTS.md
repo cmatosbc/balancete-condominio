@@ -75,6 +75,17 @@ build (não é mais CSS escrito à mão).
   usada — o painel da unidade mostra essa nota quando `evo=true` no
   `/api/resumo`. Sem Evolution configurada, a rota retorna 400
   explicativo e o botão fica desabilitado.
+  Entrada (bidirecional): `POST /webhook/whatsapp` recebe
+  `MESSAGES_UPSERT` da Evolution (configurado via `POST
+  {EVO}/webhook/set/{instance}` com `url=http://site:8000/…` e
+  `headers.apikey=EVO_KEY` — o endpoint valida esse header ou
+  `?key=`). Telefone do remetente → unidade via `unidades.telefone`
+  (JID `@lid` resolve por `senderPn`). Comandos em `_wa_comando`:
+  `OCORRENCIA <texto>` (grava no livro, categoria `whatsapp`),
+  `VOTACAO` (lista abertas), `VOTAR <n> FAVOR|CONTRA` (mesmas regras
+  do site: unidade válida, não em atraso, proposta aberta, upsert),
+  `AJUDA`; respostas por `_wa_reply` (best-effort, nunca derruba o
+  webhook). Ignora fromMe/grupos/broadcast/não-texto.
   Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
   `ocorrencias` → listadas no `/admin`; admin alterna `resolvida` via
   `POST /admin/ocorrencia/<id>/resolver`.

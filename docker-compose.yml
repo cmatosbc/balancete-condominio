@@ -15,10 +15,77 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
-      # Envio de códigos por WhatsApp via Evolution API self-hosted (opcional)
-      EVO_URL: ${EVO_URL:-}
+      # Envio de códigos por WhatsApp via Evolution API self-hosted (opcional).
+      # Suba o stack com: docker compose --profile whatsapp up -d
+      EVO_URL: ${EVO_URL:-http://evolution:8080}
       EVO_KEY: ${EVO_KEY:-}
-      EVO_INSTANCE: ${EVO_INSTANCE:-}
+      EVO_INSTANCE: ${EVO_INSTANCE:-condominio}
     volumes:
       - ./data:/data
     restart: unless-stopped
+
+  # ---- WhatsApp: Evolution API + Postgres + Redis (profile "whatsapp") ----
+  evolution:
+    profiles: ["whatsapp"]
+    image: evoapicloud/evolution-api:v2.3.8
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"   # API REST + /manager — só localhost
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: http://localhost:8081
+      CORS_ORIGIN: "*"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evo:${EVO_DB_PASS}@evopg:5432/evolution?schema=evolution_api
+      DATABASE_CONNECTION_CLIENT_NAME: evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evoredis:6379/0
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_LOCAL_ENABLED: "false"
+      AUTHENTICATION_API_KEY: ${EVO_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      CONFIG_SESSION_PHONE_CLIENT: Condominio Elits Park
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: "30"
+      DEL_INSTANCE: "false"
+      LOG_LEVEL: ERROR,WARN
+      LOG_BAILEYS: error
+    depends_on:
+      evopg:
+        condition: service_healthy
+      evoredis:
+        condition: service_started
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  evopg:
+    profiles: ["whatsapp"]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evo
+      POSTGRES_PASSWORD: ${EVO_DB_PASS}
+      POSTGRES_DB: evolution
+    volumes:
+      - evopg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evo -d evolution"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  evoredis:
+    profiles: ["whatsapp"]
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  evopg:
+  evolution_instances:

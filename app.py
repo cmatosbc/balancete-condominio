@@ -20,9 +20,8 @@ from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
 
-from flask import (Flask, redirect, render_template_string, request,
+from flask import (Flask, redirect, render_template, request,
                    send_from_directory, session)
-from markupsafe import escape
 
 import extrair
 
@@ -54,53 +53,7 @@ if not ADMIN_PW:
     raise SystemExit('Defina ADMIN_PASSWORD no ambiente. '
                      '(MORADOR_PASSWORD é opcional — acesso genérico sem unidade.)')
 
-PAGE = """<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>{{titulo}}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
- body{background:radial-gradient(1100px 600px at 15% -10%,rgba(56,189,248,.10),transparent 60%),#070c1a;
-      color:#e8edf6;font-family:Inter,system-ui,sans-serif;min-height:100vh;display:flex;
-      align-items:center;justify-content:center;padding:20px;margin:0}
- .card{background:rgba(15,23,42,.78);border:1px solid rgba(148,163,184,.14);border-radius:22px;
-       padding:36px 32px;max-width:400px;width:100%;backdrop-filter:blur(10px);
-       box-shadow:0 24px 60px rgba(0,0,0,.5)}
- .wide{max-width:720px}
- .eyebrow{color:#7dd3fc;font-size:11px;letter-spacing:3px;text-transform:uppercase;
-          font-weight:600;margin:12px 0 6px}
- h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0 0 6px}
- .mut{color:#8a94a8;font-size:13px;margin-bottom:20px}
- input[type=password],input[type=file],input[type=text],select,textarea{
-  width:100%;padding:12px 14px;border-radius:10px;
-  border:1px solid rgba(148,163,184,.22);background:rgba(2,6,23,.65);color:#e8edf6;
-  font-size:15px;outline:none;box-sizing:border-box;font-family:inherit;margin-bottom:12px}
- textarea{min-height:110px;resize:vertical}
- label{display:block;color:#8a94a8;font-size:12px;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px}
- .ugrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
- .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;
-  background:rgba(2,6,23,.5);border:1px solid rgba(148,163,184,.14);border-radius:11px;padding:5px}
- .tab{padding:9px;border:none;border-radius:8px;background:transparent;color:#8a94a8;
-  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s}
- .tab.on{background:linear-gradient(135deg,rgba(85,213,208,.2),rgba(118,169,255,.15));
-  color:#e8edf6;box-shadow:inset 0 0 0 1px rgba(85,213,208,.3)}
- button{margin-top:16px;width:100%;padding:12px;border-radius:10px;border:none;
-  background:linear-gradient(135deg,#38bdf8,#818cf8);color:#0b1220;font-weight:700;
-  font-size:14px;cursor:pointer}
- .err{color:#fb7185;font-size:12.5px;margin-top:8px}
- .ok{color:#34d399;font-size:13px;margin:0 0 14px;padding:10px 12px;
-   background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);border-radius:10px}
- .bad{color:#fb7185;font-size:13px;margin:0 0 14px;padding:10px 12px;
-   background:rgba(251,113,133,.08);border:1px solid rgba(251,113,133,.3);border-radius:10px}
- table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:14px}
- th{color:#8a94a8;font-size:11px;text-transform:uppercase;letter-spacing:1px;
-    text-align:left;padding:8px 10px;border-bottom:1px solid rgba(148,163,184,.14)}
- td{padding:9px 10px;border-bottom:1px solid rgba(148,163,184,.06)}
- td:last-child,th:last-child{text-align:right}
- a{color:#38bdf8;text-decoration:none} a:hover{text-decoration:underline}
- .links{margin-top:20px;display:flex;justify-content:space-between;font-size:13px}
-</style><link rel="stylesheet" href="/theme.css"></head><body>{{body|safe}}</body></html>"""
+
 
 
 def role():
@@ -111,7 +64,7 @@ def role():
 def _force_troca_senha():
     """Morador com código temporário só acessa a troca de senha."""
     if session.get('trocar') and request.endpoint not in (
-            'trocar_senha', 'logout', 'theme_css', 'static_files'):
+            'trocar_senha', 'logout', 'theme_css', 'static_files', 'static'):
         return redirect('/trocar-senha')
 
 
@@ -128,12 +81,7 @@ def need_admin(f):
         if not role():
             return redirect('/login')
         if role() != 'admin':
-            return render_template_string(
-                PAGE, titulo='Sem permissão',
-                body='<div class="card"><h1>⛔ Área restrita</h1>'
-                     '<p class="mut">Somente o administrador pode acessar.</p>'
-                     '<div class="links"><a href="/">← Dashboard</a>'
-                     '<a href="/logout">Sair</a></div></div>'), 403
+            return render_template('erro403.html'), 403
         return f(*a, **kw)
     return w
 
@@ -142,46 +90,13 @@ def need_admin(f):
 def login():
     if role():
         return redirect('/')
-    blocos = ''.join(f'<option>{b}</option>' for b in BLOCOS)
-    aptos = ''.join(f'<option>{a}</option>' for a in sorted(APTOS))
     msgs = {'e': 'Senha ou código incorreto — tente novamente.',
             'unidade': 'Selecione bloco e apartamento.',
             'semcodigo': 'Esta unidade ainda não tem código — peça à administração.'}
     e = request.args.get('e', '')
-    err = f'<p class=err>{escape(msgs.get(e, msgs["e"]))}</p>' if e else ''
-    return render_template_string(
-        PAGE, titulo='Entrar',
-        body='<div class="card">'
-             '<div style="font-size:34px;text-align:center">🔒</div>'
-             '<div class="eyebrow" style="text-align:center">Condomínio Elit\'s Park</div>'
-             '<h1 style="text-align:center">Área dos condôminos</h1>'
-             + err +
-             '<div class="tabs">'
-             '<button type="button" class="tab on" data-t="m">Sou morador</button>'
-             '<button type="button" class="tab" data-t="a">Administrador</button></div>'
-             '<form method="post" action="/login" id="fm">'
-             '<input type="hidden" name="modo" value="morador">'
-             '<label>Unidade</label><div class="ugrid">'
-             f'<select name="bloco" required><option value="">Bloco…</option>{blocos}</select>'
-             f'<select name="apto" required><option value="">Apto…</option>{aptos}</select></div>'
-             '<label>Código de acesso ou sua senha</label>'
-             '<input type="password" name="codigo" '
-             'placeholder="Código do e-mail ou senha pessoal" required autocomplete="off">'
-             '<button type="submit">Entrar</button></form>'
-             '<form method="post" action="/login" id="fa" style="display:none">'
-             '<input type="hidden" name="modo" value="admin">'
-             '<label>Senha</label>'
-             '<input type="password" name="senha" placeholder="Senha de admin (ou acesso geral)" '
-             'autocomplete="current-password">'
-             '<button type="submit">Entrar</button></form>'
-             '<p class="mut" style="text-align:center;margin:14px 0 0">'
-             'Morador: use o código da sua unidade.<br>Não tem código? Peça à administração.</p>'
-             '<script>var fm=document.getElementById("fm"),fa=document.getElementById("fa");'
-             'document.querySelectorAll(".tab").forEach(function(t){t.addEventListener("click",function(){'
-             'document.querySelectorAll(".tab").forEach(function(x){x.classList.remove("on")});'
-             't.classList.add("on");fm.style.display=t.dataset.t==="m"?"":"none";'
-             'fa.style.display=t.dataset.t==="a"?"":"none";});});</script>'
-             '</div>')
+    return render_template('login.html',
+                           erro=msgs.get(e, msgs['e']) if e else None,
+                           blocos=BLOCOS, aptos=sorted(APTOS))
 
 
 @app.post('/login')
@@ -236,621 +151,14 @@ def index():
     return send_from_directory(BASE, 'index.html')
 
 
-ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Admin · Elit's Park</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
- :root{--bg:#080d19;--panel:rgba(17,26,45,.78);--panel2:#0c1424;
-  --border:rgba(148,163,184,.13);--muted:#91a0b8;--text:#edf3fc;
-  --cyan:#55d5d0;--blue:#76a9ff;--amber:#f4bd6a;--rose:#ff8192}
- *{margin:0;padding:0;box-sizing:border-box}
- body{min-height:100vh;padding:34px 24px 70px;color:var(--text);font-family:'DM Sans',sans-serif;
-  background:radial-gradient(900px 500px at 8% -8%,rgba(85,213,208,.13),transparent 63%),
-   radial-gradient(700px 430px at 100% 5%,rgba(118,169,255,.10),transparent 65%),
-   linear-gradient(145deg,#080d19,#0a1020 58%,#080d19)}
- .wrap{max-width:1180px;margin:0 auto}
- .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
- .brand{display:flex;align-items:center;gap:14px}
- .mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;
-  color:#07131a;background:linear-gradient(145deg,#83e5d4,#50c6c6);
-  box-shadow:0 8px 28px rgba(85,213,208,.18)}
- .brand-copy{display:flex;flex-direction:column;gap:3px}
- .eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
- h1{font-family:'Space Grotesk',sans-serif;font-size:25px;letter-spacing:-.5px}
- .links{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid var(--border);
-  border-radius:13px;background:rgba(12,20,36,.75)}
- .links a{font-size:12.5px;font-weight:600;color:var(--muted);padding:9px 12px;
-  border-radius:9px;text-decoration:none;transition:.18s}
- .links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
- .links a.home{color:#07131a;background:var(--cyan)}
- .links a.exit{color:#ff9eaa}
- .intro{display:flex;justify-content:space-between;align-items:end;gap:20px;margin:28px 0 18px}
- .intro h2{font-family:'Space Grotesk';font-size:clamp(26px,3vw,36px);letter-spacing:-1px}
- .intro p{color:var(--muted);font-size:14px;margin-top:6px}
- .live{display:inline-flex;align-items:center;gap:8px;color:#b5c4d8;font-size:12px;
-  padding:8px 11px;border:1px solid var(--border);border-radius:999px;background:rgba(12,20,36,.6)}
- .live i{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
- .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:18px}
- .kpi{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(18,29,49,.9),rgba(12,20,36,.82));
-  border:1px solid var(--border);border-radius:17px;padding:17px 18px;min-height:103px}
- .kpi:after{content:'';position:absolute;width:90px;height:90px;right:-35px;top:-45px;
-  border-radius:50%;background:rgba(85,213,208,.08);filter:blur(2px)}
- .kpi .l{color:var(--muted);font-size:10px;letter-spacing:1.3px;text-transform:uppercase;font-weight:700}
- .kpi .v{font-family:'Space Grotesk';font-size:24px;letter-spacing:-.5px;margin-top:10px}
- .kpi:nth-child(2) .v{color:#b7cbff}.kpi:nth-child(3) .v{color:var(--cyan)}
- .grid{display:grid;grid-template-columns:minmax(320px,.88fr) minmax(0,1.12fr);gap:16px;margin-bottom:16px}
- .card{background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
-  border:1px solid var(--border);border-radius:20px;padding:22px;box-shadow:0 15px 45px rgba(0,0,0,.13)}
- .card-head{display:flex;justify-content:space-between;align-items:start;gap:12px;margin-bottom:17px}
- .card h3{font-family:'Space Grotesk';font-size:17px;letter-spacing:-.2px}
- .desc{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:5px}
- .cnt{background:rgba(85,213,208,.12);color:var(--cyan);font-size:11px;font-weight:700;
-  padding:5px 9px;border:1px solid rgba(85,213,208,.2);border-radius:999px;white-space:nowrap}
- .dropzone{min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;border:1px dashed rgba(140,168,192,.36);border-radius:15px;padding:21px;
-  background:radial-gradient(240px 130px at 50% 25%,rgba(85,213,208,.08),transparent 80%),rgba(4,10,20,.38);
-  cursor:pointer;transition:border-color .2s,background .2s,transform .2s}
- .dropzone:hover,.dropzone.on{border-color:var(--cyan);background-color:rgba(85,213,208,.06);transform:translateY(-1px)}
- .upload-icon{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;
-  background:rgba(85,213,208,.12);color:var(--cyan);margin-bottom:11px}
- .drop-title{font-weight:700;font-size:14px}
- .drop-hint{color:var(--muted);font-size:12px;margin-top:5px}
- .choose{display:inline-flex;margin-top:13px;padding:8px 13px;border-radius:9px;
-  color:var(--cyan);font-size:12px;font-weight:700;border:1px solid rgba(85,213,208,.28);
-  background:rgba(85,213,208,.07)}
- #fileInp{display:none}
- #upStatus{display:none;margin-top:13px;padding:11px 12px;border-radius:10px;
-  font-size:12.5px;background:rgba(118,169,255,.08);color:#b7cbff}
- #upStatus.show{display:block}
- #upStatus.ok{color:#8be2c5;background:rgba(85,213,208,.09)}
- #upStatus.bad{color:#ff9eaa;background:rgba(255,129,146,.09)}
- .upload-note{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11.5px;margin-top:13px}
- .upload-note span{color:var(--cyan)}
- .tools{display:flex;gap:8px;margin-bottom:12px}
- .search{width:100%;padding:9px 11px!important;margin:0!important;border-radius:10px!important;
-  background:rgba(4,10,20,.55)!important;font-size:12px!important}
- .oclist{max-height:246px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-right:3px}
- .oc{padding:11px 12px;border:1px solid rgba(148,163,184,.1);border-radius:12px;background:rgba(4,10,20,.35)}
- .oc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
- .oc-cat{color:#a6c9ff;background:rgba(118,169,255,.1);padding:4px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
- .oc-date{color:#718098;font-size:10.5px}
- .oc-meta{color:#a5b2c6;font-size:11.5px;margin-bottom:4px}
- .oc-txt{font-size:12.5px;line-height:1.5;color:#dce5f2;overflow-wrap:anywhere}
- .oc-right{display:flex;align-items:center;gap:7px}
- .oc-btn{border:1px solid rgba(85,213,208,.3);background:rgba(85,213,208,.07);color:var(--cyan);
-  border-radius:7px;font-size:10.5px;font-weight:700;padding:4px 9px;cursor:pointer;transition:.15s;white-space:nowrap}
- .oc-btn:hover{background:rgba(85,213,208,.18)}
- .oc.done{opacity:.48}
- .oc.done .oc-txt{text-decoration:line-through}
- .oc.done .oc-cat{background:rgba(52,211,153,.12);color:#8be2c5}
- .oc.done .oc-btn{border-color:rgba(148,163,184,.3);color:var(--muted);background:rgba(148,163,184,.06)}
- .prop-grid{display:grid;grid-template-columns:minmax(280px,.7fr) minmax(0,1.3fr);gap:16px;align-items:start}
- .prop-form input[type=text],.prop-form textarea{width:100%;padding:10px 12px;border-radius:10px;
-  border:1px solid var(--border);background:rgba(4,10,20,.55);color:var(--text);
-  font-family:inherit;font-size:13px;margin-bottom:10px;outline:none;resize:vertical}
- .prop-form input:focus,.prop-form textarea:focus{border-color:var(--cyan)}
- .prop-form button{width:100%;padding:11px;border:none;border-radius:10px;font-weight:700;
-  font-size:13px;cursor:pointer;color:#07131a;background:linear-gradient(135deg,#83e5d4,#50c6c6);transition:.15s}
- .prop-form button:hover{filter:brightness(1.08)}
- .prop-list{display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding-right:3px}
- .prop{padding:13px 14px;border:1px solid rgba(148,163,184,.1);border-radius:13px;background:rgba(4,10,20,.35)}
- .prop-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
- .pstate{font-size:9.5px;font-weight:700;padding:4px 8px;border-radius:6px;letter-spacing:.7px;text-transform:uppercase}
- .pstate.open{color:#8be2c5;background:rgba(85,213,208,.12);border:1px solid rgba(85,213,208,.25)}
- .pstate.closed{color:#a5b2c6;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.18)}
- .ptit{font-family:'Space Grotesk';font-size:14.5px;margin:0 0 4px}
- .pdesc{color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
- .vbar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:rgba(148,163,184,.12);margin:11px 0 6px}
- .vbar .f{background:#34d399}.vbar .c{background:#fb7185}.vbar .f,.vbar .c{transition:width .4s}
- .vnums{display:flex;justify-content:space-between;font-size:11px;color:#a5b2c6}
- .vnums .fv{color:#34d399;font-weight:700}.vnums .ct{color:#fb7185;font-weight:700}
- .pbtn{margin-top:10px;padding:6px 11px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;
-  border:1px solid rgba(148,163,184,.3);background:transparent;color:var(--muted);transition:.15s}
- .pbtn:hover{color:var(--text);border-color:rgba(148,163,184,.55)}
- .blocks{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
- .block{border:1px solid var(--border);border-radius:14px;padding:11px;background:rgba(4,10,20,.35)}
- .bname{font-family:'Space Grotesk';font-size:12px;font-weight:700;color:var(--cyan);
-  text-align:center;margin-bottom:9px;letter-spacing:1.5px}
- .bgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
- .apt{position:relative;aspect-ratio:1;display:grid;place-items:center;border-radius:6px;padding:0;
-  border:1px solid rgba(148,163,184,.14);background:rgba(17,27,46,.6);
-  color:#b7c3d5;font-size:10px;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit}
- .apt:hover{border-color:var(--cyan);transform:scale(1.08)}
- .apt.late{background:rgba(251,113,133,.22);border-color:rgba(251,113,133,.6);color:#ffc2ca}
- .apt.sel{outline:2px solid var(--cyan);outline-offset:1px}
- .icons{position:absolute;bottom:1px;left:50%;transform:translateX(-50%);
-  display:flex;gap:2px;align-items:flex-end;pointer-events:none}
- .icons svg{display:block}
- .lic{width:13px;height:10px;vertical-align:-2px;margin-right:5px}
- .lic2{width:10px;height:10px;vertical-align:-2px;margin-right:5px}
- .ocb{position:absolute;top:-5px;right:-5px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;
-  background:#f4bd6a;color:#231a05;font-size:8.5px;font-weight:800;display:grid;place-items:center}
- .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:13px;font-size:11px;color:var(--muted)}
- .lg{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
- .lg.late{background:rgba(251,113,133,.7)}.lg.docb{background:#f4bd6a;border-radius:50%}
- .upanel{margin-top:14px;border:1px solid rgba(85,213,208,.3);border-radius:15px;padding:15px 16px;
-  background:linear-gradient(155deg,rgba(17,27,46,.95),rgba(12,19,34,.9))}
- .up-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
- .up-head h3{font-family:'Space Grotesk';font-size:17px}
- .up-sub{color:var(--muted);font-size:11px;margin-top:3px}
- .up-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
- .up-close:hover{color:var(--text)}
- .up-flags{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
- .uflag{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#b7c3d5;cursor:pointer;
-  padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:rgba(4,10,20,.4)}
- .uflag input{accent-color:var(--cyan);width:15px;height:15px;cursor:pointer}
- .up-ocs{margin-top:12px;font-size:12px;color:var(--muted)}
- .up-ocs-t{font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:7px;color:#a5b2c6}
- .up-oc{padding:7px 0;border-bottom:1px solid rgba(148,163,184,.08);font-size:12px;color:#dce5f2}
- .up-oc:last-child{border-bottom:0}
- .up-sec{margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,.09)}
- .advb{position:absolute;top:-5px;left:-5px;width:14px;height:14px;border-radius:50%;
-  background:#e11d48;color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;
-  font-style:normal;font-family:inherit}
- .adv-form{display:flex;gap:8px;margin-bottom:9px}
- .adv-form input{flex:1;padding:9px 11px;border-radius:9px;border:1px solid var(--border);
-  background:rgba(4,10,20,.55);color:var(--text);font-family:inherit;font-size:12px;outline:none}
- .adv-form input:focus{border-color:var(--amber)}
- .adv-form button{padding:9px 13px;border:none;border-radius:9px;font-weight:700;font-size:11.5px;
-  cursor:pointer;color:#231a05;background:var(--amber);white-space:nowrap;transition:.15s}
- .adv-form button:hover{filter:brightness(1.1)}
- .adv-item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
-  padding:8px 0;border-bottom:1px solid rgba(148,163,184,.07);font-size:12px}
- .adv-item:last-child{border-bottom:0}
- .adv-item .adv-t{color:#f0e6d8;line-height:1.45;overflow-wrap:anywhere}
- .adv-side{display:flex;align-items:center;gap:7px;flex-shrink:0}
- .adv-side time{color:#718098;font-size:10px;white-space:nowrap}
- .adv-x{background:none;border:none;color:#718098;font-size:15px;cursor:pointer;padding:0 3px;line-height:1}
- .adv-x:hover{color:#ff9eaa}
- .cod-row{display:flex;align-items:center;gap:10px}
- .cod-st{font-size:11.5px;color:var(--muted)}
- .cod-st.on{color:#8be2c5}
- .code-out{margin-top:9px;padding:10px 12px;border-radius:10px;font-size:12.5px;
-  background:rgba(85,213,208,.07);border:1px dashed rgba(85,213,208,.4);color:#b7c3d5}
- .code-out b{font-family:'Space Grotesk';font-size:16px;letter-spacing:2px;color:var(--cyan)}
- .codbar{display:flex;align-items:center;gap:10px;margin-top:14px}
- .code-list{margin-top:12px}
- .code-list textarea{width:100%;height:170px;padding:10px;border-radius:10px;
-  border:1px solid var(--border);background:rgba(4,10,20,.55);color:var(--text);
-  font-family:ui-monospace,monospace;font-size:11.5px;resize:vertical}
- .b-tot{color:#66758b;font-size:9.5px;text-align:center;margin-top:8px}
- .empty{color:var(--muted);text-align:center;padding:32px 14px;font-size:13px}
- .section{margin-top:16px}
- .section-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:13px}
- .section-title h3{font-family:'Space Grotesk';font-size:18px}
- .section-title p{color:var(--muted);font-size:12px;margin-top:4px}
- .table-wrap{overflow:auto;border:1px solid rgba(148,163,184,.1);border-radius:13px}
- table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
- th{color:#718098;font-size:9.5px;text-transform:uppercase;letter-spacing:1.2px;text-align:right;
-  padding:11px 13px;border-bottom:1px solid var(--border);background:rgba(4,10,20,.3)}
- th:first-child,td:first-child{text-align:left}
- td{text-align:right;padding:11px 13px;border-bottom:1px solid rgba(148,163,184,.06);color:#b7c3d5}
- tbody tr:hover{background:rgba(85,213,208,.035)}
- tbody tr:last-child td{border-bottom:0}
- td a{color:var(--cyan);text-decoration:none;font-weight:700}
- td a:hover{text-decoration:underline}
- .month-tag{display:inline-flex;align-items:center;gap:7px;color:var(--text);font-weight:600}
- .month-tag i{width:6px;height:6px;border-radius:50%;background:#53647b}
- .month-tag.latest i{background:var(--cyan);box-shadow:0 0 9px rgba(85,213,208,.7)}
- .footer-note{color:#66758b;font-size:11px;text-align:center;margin-top:18px}
- #toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,80px);opacity:0;transition:.25s;
-  background:#101a2b;border:1px solid rgba(85,213,208,.4);border-radius:12px;padding:12px 18px;
-  font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.55);z-index:99;max-width:90vw}
- #toast.show{transform:translate(-50%,0);opacity:1}
- #toast.bad{border-color:rgba(255,129,146,.5)}
- @media(max-width:850px){.grid{grid-template-columns:1fr}.oclist{max-height:300px}
- .prop-grid{grid-template-columns:1fr}.prop-list{max-height:400px}
- .blocks{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:480px){.blocks{grid-template-columns:repeat(2,1fr)}}
- @media(max-width:650px){
-  body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
-  .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
-  .mark{width:40px;height:40px}.intro{align-items:start;flex-direction:column;gap:12px;margin:22px 0 15px}
-  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.kpi{padding:13px;min-height:91px}
-  .kpi .v{font-size:19px}.card{padding:17px 15px;border-radius:16px}
-  .grid{gap:12px}.dropzone{min-height:170px}.section-title{align-items:start;flex-direction:column}
- }
- @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
-</style><link rel="stylesheet" href="/theme.css"></head><body class="admin-page">
-<div class="wrap">
- <div class="topbar">
-  <div class="brand"><div class="mark" aria-hidden="true">EP</div>
-   <div class="brand-copy"><div class="eyebrow">Elit's Park · Administração</div><h1>Central do condomínio</h1></div>
-  </div>
-  <div class="links">
-   <a class="home" href="/">Painel</a><a href="/historico.html">Histórico</a>
-   <a href="/ocorrencia">Nova ocorrência</a><a href="/propostas">Votações</a>
-   <a href="/perfil">Perfil</a><a class="exit" href="/logout">Sair</a>
-  </div>
- </div>
- <section class="intro">
-  <div><h2>Olá, administrador.</h2><p>Visão geral e tarefas do condomínio em um só lugar.</p></div>
-  <div class="live"><i></i> Dados atualizados agora</div>
- </section>
- <div class="kpis" id="kpis"></div>
- <div class="grid">
-  <div class="card">
-   <div class="card-head"><div><h3>Atualizar balancete</h3>
-    <div class="desc">Importe o PDF para atualizar os dados de todos os moradores.</div></div>
-    <span class="cnt">PDF</span></div>
-   <div id="drop" class="dropzone" role="button" tabindex="0" aria-label="Selecionar ou arrastar PDF">
-    <div class="upload-icon" aria-hidden="true">
-     <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4a1 1 0 001 1h12a1 1 0 001-1v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="drop-title">Solte o balancete aqui</div>
-    <div class="drop-hint">PDF do Condomínio21 · o mês é detectado automaticamente</div>
-    <span class="choose">Escolher arquivo</span>
-   </div>
-   <input type="file" id="fileInp" accept="application/pdf,.pdf">
-   <div id="upStatus"></div>
-   <div class="upload-note"><span>✓</span> Reenviar um mês substitui os dados anteriores daquele mês.</div>
-  </div>
-  <div class="card">
-   <div class="card-head"><div><h3>Livro de ocorrências</h3>
-    <div class="desc">Registros recentes · visíveis somente para administração.</div></div>
-    <span class="cnt" id="ocN">0 registros</span></div>
-   <div class="tools"><input class="search" type="search" id="ocSearch" placeholder="Filtrar por categoria, unidade ou texto…"></div>
-   <div class="oclist" id="ocList"></div>
-  </div>
- </div>
- <section class="section">
-  <div class="section-title"><div><h3>Propostas & votações</h3>
-   <p>Publique ideias e obras para os moradores votarem — um voto por unidade.</p></div>
-   <span class="cnt" id="propN"></span></div>
-  <div class="prop-grid">
-   <form class="card prop-form" id="propForm">
-    <input type="text" id="propTitulo" placeholder="Título — ex.: Pintura da fachada" required maxlength="120">
-    <textarea id="propDesc" rows="5" placeholder="Detalhes: custo estimado, prazo, benefícios…"></textarea>
-    <button type="submit">Publicar para votação</button>
-   </form>
-   <div class="prop-list" id="propList"></div>
-  </div>
- </section>
- <section class="section">
-  <div class="section-title"><div><h3>Desenho predial</h3>
-   <p>Toque em uma unidade para marcar/desmarcar atraso — unidades em atraso não votam.</p></div>
-   <span class="cnt" id="lateN"></span></div>
-  <div class="blocks" id="blocks"></div>
-  <div class="legend">
-   <span><i class="lg late"></i>Em atraso</span>
-   <span><svg class="lic" viewBox="0 0 24 18" fill="#34d399" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · entrada</span>
-   <span><svg class="lic" viewBox="0 0 24 18" fill="#fb923c" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · saída</span>
-   <span><svg class="lic2" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>Idoso 75+</span>
-   <span><i class="lg docb"></i>Ocorrência aberta</span>
-   <span><i class="advb" style="position:static">!</i>Advertência</span>
-  </div>
-  <div class="codbar"><span class="cod-st" id="codN"></span>
-   <button class="pbtn" id="codBtn">Gerar códigos pendentes</button>
-   <button class="pbtn" id="mailBtn">Enviar códigos por e-mail</button></div>
-  <div id="codOut" class="code-list" style="display:none">
-   <div class="up-ocs-t">Códigos gerados — copie e distribua (não ficam salvos em texto puro)</div>
-   <textarea readonly id="codTxt"></textarea></div>
-  <div id="unitPanel"></div>
- </section>
- <section class="section">
-  <div class="section-title"><div><h3>Balancetes importados</h3>
-   <p>Histórico de arquivos que formam a base atual do dashboard.</p></div>
-   <span class="cnt" id="monthN"></span></div>
-  <div class="table-wrap"><table><thead>
-   <tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Água</th><th></th></tr>
-  </thead><tbody id="tblBody"></tbody></table></div>
- </section>
- <div class="footer-note">Os dados publicados são compartilhados por todos os moradores.</div>
-</div>
-<div id="toast"></div>
-<script>
-const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"']/g,
-  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let allOccurrences = [];
 
-function toast(msg, bad) {
-  const t = $('toast'); t.textContent = msg;
-  t.className = 'show' + (bad ? ' bad' : '');
-  clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 4200);
-}
-
-async function resumo() {
-  const res = await fetch('/api/resumo');
-  if (!res.ok) throw new Error('Não foi possível carregar o painel.');
-  const r = await res.json();
-  const ult = r.meses[r.meses.length - 1] || {};
-  $('kpis').innerHTML = `
-   <div class="kpi"><div class="l">Meses registrados</div><div class="v">${r.meses.length}</div></div>
-   <div class="kpi"><div class="l">Último balancete</div><div class="v">${esc(ult.label || '—')}</div></div>
-   <div class="kpi"><div class="l">Água · último mês</div><div class="v">${ult.agua != null ? BRL.format(ult.agua) : '—'}</div></div>
-   <div class="kpi"><div class="l">Ocorrências abertas</div><div class="v">${r.ocorrencias.filter(o => !o.resolvida).length}</div></div>`;
-  allOccurrences = r.ocorrencias;
-  $('ocN').textContent = `${r.ocorrencias.length} ${r.ocorrencias.length === 1 ? 'registro' : 'registros'}`;
-  $('monthN').textContent = `${r.meses.length} meses`;
-  renderOccurrences();
-  renderProps(r.propostas);
-  allAdvs = r.advertencias;
-  codeSet = new Set(r.codigos);
-  uEmails = r.emails || {};
-  $('codN').textContent = `${r.codigos.length}/144 códigos emitidos`;
-  lastMapa = r.mapa;
-  renderBlocks(r.mapa);
-  $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
-   <td><span class="month-tag ${i === 0 ? 'latest' : ''}"><i></i>${esc(m.label)}</span></td>
-   <td>${BRL.format(m.rec)}</td><td>${BRL.format(m.desp)}</td>
-   <td>${BRL.format(m.agua)}</td><td><a href="/pdfs/${encodeURIComponent(m.am)}.pdf">Baixar PDF ↗</a></td></tr>`).join('');
-}
-
-function renderOccurrences() {
-  const q = $('ocSearch').value.trim().toLocaleLowerCase('pt-BR');
-  const items = allOccurrences.filter(o =>
-    [o.categoria, o.unidade, o.nome, o.texto].join(' ').toLocaleLowerCase('pt-BR').includes(q)
-  ).slice(0, 12);
-  $('ocList').innerHTML = items.length
-    ? items.map(o => `<article class="oc ${o.resolvida ? 'done' : ''}"><div class="oc-top">
-       <span class="oc-cat">${esc(o.categoria || 'Outro')}</span>
-       <div class="oc-right"><time class="oc-date">${esc(o.criado)}</time>
-        <button class="oc-btn" data-oc="${o.id}" title="${o.resolvida ? 'Reabrir' : 'Marcar como resolvida'}">${o.resolvida ? '↩ reabrir' : '✓ resolver'}</button></div></div>
-       <div class="oc-meta">${esc(o.unidade || 'Sem unidade')} · ${esc(o.nome || 'Anônimo')}</div>
-       <div class="oc-txt">${esc(o.texto)}</div></article>`).join('')
-    : `<div class="empty">${q ? 'Nenhuma ocorrência corresponde à busca.' : 'Tudo em dia — nenhuma ocorrência registrada.'}</div>`;
-}
-
-function renderProps(props) {
-  $('propN').textContent = `${props.length} ${props.length === 1 ? 'proposta' : 'propostas'}`;
-  $('propList').innerHTML = props.length ? props.map(p => {
-    const tot = p.favor + p.contra;
-    const pf = tot ? p.favor * 100 / tot : 0;
-    return `<article class="prop">
-     <div class="prop-top"><span class="pstate ${p.aberta ? 'open' : 'closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
-      <time class="oc-date">${esc(p.criado)}</time></div>
-     <h4 class="ptit">${esc(p.titulo)}</h4>
-     ${p.descricao ? `<p class="pdesc">${esc(p.descricao)}</p>` : ''}
-     <div class="vbar"><div class="f" style="width:${pf}%"></div><div class="c" style="width:${100 - pf}%"></div></div>
-     <div class="vnums"><span class="fv">${p.favor} a favor</span><span>${tot} ${tot === 1 ? 'voto' : 'votos'}</span><span class="ct">${p.contra} contra</span></div>
-     <button class="pbtn" data-prop="${p.id}">${p.aberta ? 'Encerrar votação' : 'Reabrir votação'}</button>
-    </article>`;
-  }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
-}
-const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
-let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {}, uEmails = {};
-const FLAG_TXT = { a: 'em atraso', mi: 'mudança (entrada)', mo: 'mudança (saída)', i: 'idoso 75+' };
-const TRUCK = c => `<svg width="12" height="9" viewBox="0 0 24 18" fill="${c}" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>`;
-const CROSS = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>';
-
-function renderBlocks(mapa) {
-  const nLate = Object.values(mapa).filter(s => s.a).length;
-  $('lateN').textContent = `${nLate} em atraso`;
-  $('blocks').innerHTML = BLOCOS.map(b => {
-    let cells = '', nFlag = 0;
-    for (let f = 6; f >= 1; f--)
-      for (let n = 1; n <= 4; n++) {
-        const id = `${b}-${f}${n}`, st = mapa[id] || {};
-        if (st.a) nFlag++;
-        const ico = [st.mi && TRUCK('#34d399'), st.mo && TRUCK('#fb923c'), st.i && CROSS]
-          .filter(Boolean).join('');
-        const tip = [id, ...Object.keys(FLAG_TXT).filter(k => st[k]).map(k => FLAG_TXT[k]),
-          st.oc ? `${st.oc} ocorrência(s) aberta(s)` : '',
-          st.adv ? `${st.adv} advertência(s)` : ''].filter(Boolean).join(' · ');
-        cells += `<button class="apt ${st.a ? 'late' : ''} ${selUnit === id ? 'sel' : ''}"
-          data-apt="${id}" title="${esc(tip)}">${f}${n}${ico ? `<span class="icons">${ico}</span>` : ''}${st.oc ? `<span class="ocb">${st.oc}</span>` : ''}${st.adv ? '<i class="advb">!</i>' : ''}</button>`;
-      }
-    return `<div class="block"><div class="bname">${b}</div>
-      <div class="bgrid">${cells}</div>
-      <div class="b-tot">${nFlag ? nFlag + ' em atraso' : 'em dia'}</div></div>`;
-  }).join('');
-  if (selUnit) renderUnitPanel();
-}
-
-function renderUnitPanel() {
-  const st = lastMapa[selUnit] || {};
-  const [bloco, num] = selUnit.split('-');
-  const ocs = allOccurrences.filter(o => !o.resolvida && o.unidade === selUnit);
-  const advs = allAdvs.filter(a => a.unidade === selUnit);
-  const hasCode = codeSet.has(selUnit);
-  const flag = (k, label, ic) => `<label class="uflag">
-    <input type="checkbox" data-flag="${k}" ${st[k] ? 'checked' : ''}>
-    ${ic}${label}</label>`;
-  $('unitPanel').innerHTML = `<div class="upanel">
-   <div class="up-head"><div><h3>${selUnit}</h3>
-    <div class="up-sub">Bloco ${bloco} · ${num[0]}º andar · Apto ${num}</div></div>
-    <button class="up-close" data-close title="Fechar">×</button></div>
-   <div class="up-flags">
-    ${flag('a', 'Em atraso — sem voto', '<i class="lg late"></i>')}
-    ${flag('mi', 'Mudança · entrada', TRUCK('#34d399'))}
-    ${flag('mo', 'Mudança · saída', TRUCK('#fb923c'))}
-    ${flag('i', 'Morador 75+', CROSS)}
-   </div>
-   <div class="up-ocs"><div class="up-ocs-t">Ocorrências abertas</div>
-    ${ocs.length ? ocs.map(o => `<div class="up-oc"><span class="oc-cat">${esc(o.categoria || 'Outro')}</span> ${esc(o.texto)}</div>`).join('')
-     : 'Nenhuma em aberto.'}</div>
-   <div class="up-sec"><div class="up-ocs-t">Advertências — visíveis só no perfil do morador</div>
-    <div class="adv-form"><input type="text" id="advInp" maxlength="300"
-      placeholder="Descreva a advertência…"><button data-adv>Emitir</button></div>
-    ${advs.length ? advs.map(a => `<div class="adv-item"><span class="adv-t">${esc(a.texto)}</span>
-      <span class="adv-side"><time>${esc(a.criado.slice(0, 10))}</time>
-      <button class="adv-x" data-advdel="${a.id}" title="Remover">×</button></span></div>`).join('')
-     : '<div class="up-ocs">Nenhuma registrada.</div>'}
-   </div>
-   <div class="up-sec"><div class="up-ocs-t">E-mail do morador</div>
-    <div class="adv-form"><input type="email" id="mailInp" maxlength="120"
-      placeholder="email@exemplo.com" value="${esc(uEmails[selUnit] || '')}">
-     <button data-mail>Salvar</button>
-     <button class="pbtn" data-mailsend ${uEmails[selUnit] ? '' : 'disabled'}
-      title="Gera código temporário e envia por e-mail (também redefine a senha)">Enviar código</button></div>
-    ${!uEmails[selUnit] ? '<div style="font-size:10.5px;color:#64748b;margin-top:4px">Salve o e-mail para habilitar o envio.</div>' : ''}
-   </div>
-   <div class="up-sec"><div class="up-ocs-t">Código de acesso do morador</div>
-    <div class="cod-row"><span class="cod-st ${hasCode ? 'on' : ''}">${hasCode ? '✓ Código ativo' : 'Sem código — o morador não acessa o perfil'}</span>
-     <button class="pbtn" data-cod>${hasCode ? 'Gerar novo código' : 'Gerar código'}</button></div>
-    ${lastCode[selUnit] ? `<div class="code-out">Código: <b>${lastCode[selUnit]}</b><br>
-      <span style="font-size:10.5px">Distribua ao morador — gerar um novo invalida este.</span></div>` : ''}
-    <div style="font-size:10.5px;color:#64748b;margin-top:6px">Códigos são temporários: no primeiro acesso o morador define a senha pessoal.</div>
-   </div>
-  </div>`;
-}
-resumo().catch(e => toast(e.message, true));
-$('ocSearch').addEventListener('input', renderOccurrences);
-$('blocks').addEventListener('click', e => {
-  const b = e.target.closest('[data-apt]');
-  if (!b) return;
-  selUnit = b.dataset.apt;
-  document.querySelectorAll('.apt.sel').forEach(x => x.classList.remove('sel'));
-  b.classList.add('sel');
-  renderUnitPanel();
-});
-$('unitPanel').addEventListener('click', async e => {
-  if (e.target.closest('[data-close]')) {
-    selUnit = null;
-    $('unitPanel').innerHTML = '';
-    document.querySelectorAll('.apt.sel').forEach(x => x.classList.remove('sel'));
-    return;
-  }
-  if (!selUnit) return;
-  try {
-    if (e.target.closest('[data-adv]')) {
-      const inp = $('advInp'), texto = inp.value.trim();
-      if (!texto) { toast('Descreva a advertência.', true); inp.focus(); return; }
-      const fd = new FormData(); fd.append('texto', texto);
-      const r = await fetch(`/admin/unidade/${selUnit}/advertencia`, { method: 'POST', body: fd });
-      const j = await r.json();
-      toast(j.msg || 'Erro.', !r.ok || !j.ok);
-      if (r.ok && j.ok) await resumo();
-      return;
-    }
-    const del = e.target.closest('[data-advdel]');
-    if (del) {
-      const r = await fetch(`/admin/advertencia/${del.dataset.advdel}/remover`, { method: 'POST' });
-      if (!r.ok) throw new Error();
-      await resumo();
-      return;
-    }
-    if (e.target.closest('[data-cod]')) {
-      const r = await fetch(`/admin/unidade/${selUnit}/codigo`, { method: 'POST' });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
-      lastCode[selUnit] = j.codigo;
-      toast(`Código da unidade ${selUnit}: ${j.codigo}`);
-      await resumo();
-      return;
-    }
-    if (e.target.closest('[data-mail]')) {
-      const inp = $('mailInp'), email = inp.value.trim();
-      const fd = new FormData(); fd.append('email', email);
-      const r = await fetch(`/admin/unidade/${selUnit}/email`, { method: 'POST', body: fd });
-      const j = await r.json();
-      toast(j.msg || (email ? `E-mail de ${selUnit} salvo.` : `E-mail de ${selUnit} removido.`), !r.ok || !j.ok);
-      if (r.ok && j.ok) await resumo();
-      return;
-    }
-    if (e.target.closest('[data-mailsend]')) {
-      const r = await fetch(`/admin/unidade/${selUnit}/email/enviar`, { method: 'POST' });
-      const j = await r.json();
-      toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
-      if (r.ok && j.ok) await resumo();
-    }
-  } catch (err) { toast(err.message || 'Falha ao atualizar a unidade.', true); }
-});
-$('unitPanel').addEventListener('change', async e => {
-  const cb = e.target.closest('[data-flag]');
-  if (!cb || !selUnit) return;
-  const fd = new FormData(); fd.append('flag', cb.dataset.flag);
-  try {
-    const r = await fetch(`/admin/unidade/${selUnit}/flag`, { method: 'POST', body: fd });
-    const j = await r.json();
-    if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao atualizar.');
-    await resumo();
-  } catch (err) { cb.checked = !cb.checked; toast(err.message || 'Falha ao atualizar a unidade.', true); }
-});
-$('ocList').addEventListener('click', async e => {
-  const b = e.target.closest('[data-oc]');
-  if (!b) return;
-  try {
-    const r = await fetch(`/admin/ocorrencia/${b.dataset.oc}/resolver`, { method: 'POST' });
-    if (!r.ok) throw new Error();
-    await resumo();
-  } catch { toast('Falha ao atualizar a ocorrência.', true); }
-});
-$('propForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const fd = new FormData();
-  fd.append('titulo', $('propTitulo').value.trim());
-  fd.append('descricao', $('propDesc').value.trim());
-  try {
-    const r = await fetch('/admin/proposta', { method: 'POST', body: fd });
-    const j = await r.json();
-    toast(j.msg || 'Erro ao publicar.', !r.ok || !j.ok);
-    if (r.ok && j.ok) { $('propForm').reset(); await resumo(); }
-  } catch { toast('Falha de conexão.', true); }
-});
-$('propList').addEventListener('click', async e => {
-  const b = e.target.closest('[data-prop]');
-  if (!b) return;
-  try {
-    const r = await fetch(`/admin/proposta/${b.dataset.prop}/alternar`, { method: 'POST' });
-    if (!r.ok) throw new Error();
-    await resumo();
-  } catch { toast('Falha ao atualizar a proposta.', true); }
-});
-$('codBtn').addEventListener('click', async () => {
-  try {
-    const r = await fetch('/admin/codigos/gerar', { method: 'POST' });
-    const j = await r.json();
-    if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
-    Object.assign(lastCode, j.novos);
-    $('codTxt').value = Object.entries(j.novos).map(([u, c]) => `${u}: ${c}`).join('\\n');
-    $('codOut').style.display = j.total ? '' : 'none';
-    toast(j.total ? `${j.total} códigos gerados — copie a lista` : 'Todas as unidades já têm código.', !j.total);
-    await resumo();
-  } catch (err) { toast(err.message || 'Falha ao gerar códigos.', true); }
-});
-$('mailBtn').addEventListener('click', async () => {
-  if (!confirm('Enviar código temporário por e-mail para as unidades com e-mail cadastrado e sem senha própria?')) return;
-  try {
-    const r = await fetch('/admin/codigos/email', { method: 'POST' });
-    const j = await r.json();
-    toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
-    if (r.ok && j.ok) await resumo();
-  } catch (err) { toast(err.message || 'Falha ao enviar códigos.', true); }
-});
-
-const drop = $('drop'), fileInp = $('fileInp'), st = $('upStatus');
-drop.addEventListener('click', () => fileInp.click());
-drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInp.click(); } });
-['dragover', 'dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('on'); }));
-['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('on'); }));
-drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) enviar(f); });
-fileInp.addEventListener('change', () => { if (fileInp.files[0]) enviar(fileInp.files[0]); });
-
-async function enviar(f) {
-  if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
-    toast('Selecione um arquivo PDF válido.', true); return;
-  }
-  st.textContent = `Processando ${f.name}…`; st.className = 'show';
-  drop.style.pointerEvents = 'none'; drop.style.opacity = '.55';
-  try {
-    const fd = new FormData(); fd.append('pdf', f);
-    const response = await fetch('/upload', { method: 'POST', body: fd });
-    const j = await response.json();
-    if (!response.ok || !j.ok) throw new Error(j.msg || 'Falha na importação.');
-    toast(j.msg, !j.ok);
-    st.textContent = `✓ ${j.msg}`; st.className = 'show ok';
-    await resumo();
-  } catch (e) {
-    toast(e.message || 'Falha ao enviar o arquivo.', true);
-    st.textContent = e.message || 'Falha ao processar o PDF.'; st.className = 'show bad';
-  } finally {
-    drop.style.pointerEvents = ''; drop.style.opacity = '';
-    fileInp.value = '';
-  }
-}
-</script></body></html>"""
 
 
 @app.get('/admin')
 @need_admin
 def admin():
-    return ADMIN_HTML
+    return render_template('admin.html', heading='Central do condomínio',
+                           eyebrow="Elit's Park · Administração", active='admin')
 
 
 @app.get('/api/resumo')
@@ -1060,41 +368,13 @@ def ocorrencia():
         conn.commit()
         return redirect('/ocorrencia?ok=1')
 
-    ok = '<p class="ok">✓ Ocorrência registrada — a administração foi notificada.</p>' \
-        if request.args.get('ok') else ''
-    erro = f'<p class="bad">⚠ {escape(request.args.get("erro", ""))}</p>' \
-        if request.args.get('erro') else ''
-    cats = ''.join(f'<option>{c}</option>' for c in CATEGORIAS)
     ub = (session.get('unidade') or '').split('-')
-    blocos = ''.join(
-        f'<option{" selected" if ub[0] == b else ""}>{b}</option>' for b in BLOCOS)
-    aptos = ''.join(
-        f'<option{" selected" if len(ub) == 2 and ub[1] == a else ""}>{a}</option>'
-        for a in sorted(APTOS))
-    return render_template_string(
-        PAGE, titulo='Ocorrência',
-        body=f'<div class="card"><div class="eyebrow">Livro de ocorrências</div>'
-             f'<h1>Registrar ocorrência</h1>'
-             f'<p class="mut">Vai direto para a administração — outros condôminos não veem.</p>'
-             f'{ok}{erro}'
-             f'<form method="post">'
-             f'<label>Unidade (opcional)</label>'
-             f'<div class="ugrid">'
-             f'<select name="bloco" id="blocoSel"><option value="">Área comum / outra</option>{blocos}</select>'
-             f'<select name="apto" id="aptoSel"{"" if ub[0] in BLOCOS else " disabled"}><option value="">Apto…</option>{aptos}</select>'
-             f'</div>'
-             f'<label>Seu nome (opcional)</label>'
-             f'<input type="text" name="nome" placeholder="Anônimo se vazio">'
-             f'<label>Categoria</label><select name="categoria">{cats}</select>'
-             f'<label>Ocorrência</label>'
-             f'<textarea name="texto" required '
-             f'placeholder="Descreva o que aconteceu, onde e quando"></textarea>'
-             f'<button type="submit">Registrar</button></form>'
-             f'<script>var b=document.getElementById("blocoSel"),a=document.getElementById("aptoSel");'
-             f'b.addEventListener("change",function(){{a.disabled=!b.value;if(!b.value)a.value="";}});</script>'
-             f'<div class="links"><a href="/">← Dashboard</a>'
-             f'<a href="/propostas">Votações</a>'
-             f'<a href="/logout">Sair</a></div></div>')
+    return render_template(
+        'ocorrencia.html', ok=bool(request.args.get('ok')),
+        erro=request.args.get('erro'), categorias=CATEGORIAS,
+        blocos=BLOCOS, aptos=sorted(APTOS),
+        pre_bloco=ub[0], pre_apto=ub[1] if len(ub) == 2 else '',
+        heading='Registrar ocorrência', active='oc')
 
 
 @app.get('/admin/ocorrencias')
@@ -1171,23 +451,9 @@ def trocar_senha():
         conn.commit()
         session.pop('trocar')
         return redirect('/')
-    erro = (f'<p class="bad">⚠ {escape(request.args.get("erro", ""))}</p>'
-            if request.args.get('erro') else '')
-    return render_template_string(
-        PAGE, titulo='Defina sua senha',
-        body=f'<div class="card"><div class="eyebrow">Primeiro acesso</div>'
-             f'<h1>Defina sua senha</h1>'
-             f'<p class="mut">Unidade <b>{escape(session["unidade"])}</b> — o código '
-             f'de e-mail é temporário. Crie sua senha pessoal (mín. 6 caracteres).</p>'
-             f'{erro}'
-             f'<form method="post">'
-             f'<label>Nova senha</label>'
-             f'<input type="password" name="senha" minlength="6" required '
-             f'autocomplete="new-password">'
-             f'<label>Repita a senha</label>'
-             f'<input type="password" name="senha2" minlength="6" required '
-             f'autocomplete="new-password">'
-             f'<button type="submit">Salvar e entrar</button></form></div>')
+    return render_template('trocar.html',
+                           erro=request.args.get('erro'),
+                           unidade=session['unidade'])
 
 
 @app.post('/admin/codigos/gerar')
@@ -1294,212 +560,14 @@ def enviar_codigos_email():
 
 # ---------------- propostas & votação ----------------
 
-PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Propostas · Elit's Park</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
- :root{--bg:#080d19;--panel:rgba(17,26,45,.78);--border:rgba(148,163,184,.13);
-  --muted:#91a0b8;--text:#edf3fc;--cyan:#55d5d0;--favor:#34d399;--contra:#fb7185}
- *{margin:0;padding:0;box-sizing:border-box}
- body{min-height:100vh;padding:34px 24px 70px;color:var(--text);font-family:'Inter',sans-serif;
-  background:radial-gradient(900px 500px at 8% -8%,rgba(85,213,208,.13),transparent 63%),
-   radial-gradient(700px 430px at 100% 5%,rgba(118,169,255,.10),transparent 65%),
-   linear-gradient(145deg,#080d19,#0a1020 58%,#080d19)}
- .wrap{max-width:760px;margin:0 auto}
- .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
- .brand{display:flex;align-items:center;gap:14px}
- .mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;
-  color:#07131a;background:linear-gradient(145deg,#83e5d4,#50c6c6);font-weight:700;
-  box-shadow:0 8px 28px rgba(85,213,208,.18)}
- .eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
- h1{font-family:'Space Grotesk',sans-serif;font-size:25px;letter-spacing:-.5px}
- .links{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid var(--border);
-  border-radius:13px;background:rgba(12,20,36,.75)}
- .links a{font-size:12.5px;font-weight:600;color:var(--muted);padding:9px 12px;
-  border-radius:9px;text-decoration:none;transition:.18s;white-space:nowrap}
- .links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
- .links a.exit{color:#ff9eaa}
- .intro{margin:28px 0 18px}
- .intro h2{font-family:'Space Grotesk';font-size:clamp(24px,3vw,32px);letter-spacing:-1px}
- .intro p{color:var(--muted);font-size:14px;margin-top:6px}
- .unit-card{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
-  background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
-  border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:18px}
- .unit-card label{color:var(--muted);font-size:11px;letter-spacing:1.2px;
-  text-transform:uppercase;font-weight:700;white-space:nowrap}
- .unit-card input,.unit-card select{flex:1;min-width:100px;padding:10px 12px;border-radius:10px;
-  border:1px solid var(--border);background:rgba(4,10,20,.55);color:var(--text);
-  font-family:inherit;font-size:14px;font-weight:600;outline:none}
- .unit-card input:focus,.unit-card select:focus{border-color:var(--cyan)}
- .unit-card select{appearance:auto;cursor:pointer}
- .unit-hint{color:#66758b;font-size:11px;white-space:nowrap}
- .warn{display:flex;align-items:center;gap:10px;color:#ffcf9e;font-size:13px;
-  background:rgba(251,146,60,.09);border:1px solid rgba(251,146,60,.35);
-  border-radius:12px;padding:12px 15px;margin-bottom:18px}
- .prop{background:linear-gradient(155deg,rgba(17,27,46,.91),rgba(12,19,34,.88));
-  border:1px solid var(--border);border-radius:18px;padding:19px 20px;margin-bottom:13px;
-  box-shadow:0 15px 45px rgba(0,0,0,.13)}
- .prop-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
- .pstate{font-size:10px;font-weight:700;padding:4px 9px;border-radius:6px;
-  letter-spacing:.8px;text-transform:uppercase}
- .pstate.open{color:#8be2c5;background:rgba(85,213,208,.12);border:1px solid rgba(85,213,208,.25)}
- .pstate.closed{color:#a5b2c6;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.18)}
- .pdate{color:#718098;font-size:10.5px}
- .ptit{font-family:'Space Grotesk';font-size:17px;letter-spacing:-.2px;margin-bottom:5px}
- .pdesc{color:var(--muted);font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
- .vbar{display:flex;height:9px;border-radius:99px;overflow:hidden;
-  background:rgba(148,163,184,.12);margin:13px 0 7px}
- .vbar .f{background:var(--favor)} .vbar .c{background:var(--contra)}
- .vbar .f,.vbar .c{transition:width .4s}
- .vnums{display:flex;justify-content:space-between;font-size:11.5px;color:#a5b2c6}
- .vnums .fv{color:var(--favor);font-weight:700}.vnums .ct{color:var(--contra);font-weight:700}
- .vote-row{display:flex;gap:9px;margin-top:13px}
- .vb{flex:1;padding:11px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;
-  transition:.15s;border:1px solid}
- .vb.favor{color:var(--favor);border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.07)}
- .vb.favor:hover{background:rgba(52,211,153,.16)}
- .vb.contra{color:var(--contra);border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.07)}
- .vb.contra:hover{background:rgba(251,113,133,.16)}
- .vb.mine{outline:2px solid currentColor;outline-offset:1px}
- .voted{font-size:11.5px;color:#a5b2c6;margin-top:9px;text-align:center}
- .voted b{color:var(--cyan)}
- .empty{color:var(--muted);text-align:center;padding:44px 14px;font-size:13.5px}
- #toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,80px);opacity:0;
-  transition:.25s;background:#101a2b;border:1px solid rgba(85,213,208,.4);border-radius:12px;
-  padding:12px 18px;font-size:13px;box-shadow:0 14px 40px rgba(0,0,0,.55);z-index:99;max-width:90vw}
- #toast.show{transform:translate(-50%,0);opacity:1}
- #toast.bad{border-color:rgba(251,113,133,.5)}
- @media(max-width:650px){
-  body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
-  .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
-  .mark{width:40px;height:40px}.unit-card{flex-direction:column;align-items:stretch}
-  .unit-hint{text-align:center}.vote-row{flex-direction:column}
- }
-</style><link rel="stylesheet" href="/theme.css"></head><body>
-<div class="wrap">
- <div class="topbar">
-  <div class="brand"><div class="mark" aria-hidden="true">EP</div>
-   <div><div class="eyebrow">Condomínio Elit's Park</div><h1>Propostas & votações</h1></div>
-  </div>
-  <div class="links">
-   <a href="/">Painel</a><a href="/historico.html">Histórico</a>
-   <a href="/ocorrencia">Ocorrência</a><a href="/perfil">Perfil</a>
-   <a class="exit" href="/logout">Sair</a>
-  </div>
- </div>
- <section class="intro">
-  <h2>Decida junto.</h2>
-  <p>Propostas da administração abertas à votação — um voto por unidade, você pode mudar enquanto a votação estiver aberta.</p>
- </section>
- <div class="unit-card">
-  <label>Sua unidade</label>
-  <select id="uBloco"><option value="">Bloco…</option></select>
-  <select id="uApto"><option value="">Apto…</option></select>
-  <span class="unit-hint">Necessária para votar · fica salva neste aparelho</span>
- </div>
- <div id="avisoAtraso"></div>
- <div id="lista"></div>
-</div>
-<div id="toast"></div>
-<script>
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"']/g,
-  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let props = [], emAtraso = false;
 
-function toast(msg, bad) {
-  const t = $('toast'); t.textContent = msg;
-  t.className = 'show' + (bad ? ' bad' : '');
-  clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 4200);
-}
-
-const BLOCOS_P = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
-$('uBloco').innerHTML += BLOCOS_P.map(b => `<option>${b}</option>`).join('');
-let _ao = '';
-for (let f = 1; f <= 6; f++) for (let n = 1; n <= 4; n++) _ao += `<option>${f}${n}</option>`;
-$('uApto').innerHTML += _ao;
-
-function unidade() {
-  const b = $('uBloco').value, a = $('uApto').value;
-  return b && a ? `${b}-${a}` : '';
-}
-
-async function carregar() {
-  const u = unidade();
-  const r = await fetch('/api/propostas' + (u ? '?unidade=' + encodeURIComponent(u) : ''));
-  if (!r.ok) throw new Error('Não foi possível carregar as propostas.');
-  const j = await r.json();
-  props = j.propostas;
-  emAtraso = j.unidade_em_atraso;
-  if (j.sessao_unidade && $('uBloco').value !== j.sessao_unidade.split('-')[0]) {
-    const [b, a] = j.sessao_unidade.split('-');
-    $('uBloco').value = b; $('uApto').value = a;
-  }
-  if (j.sessao_unidade) {
-    $('uBloco').disabled = $('uApto').disabled = true;
-    document.querySelector('.unit-hint').textContent =
-      `Votando como ${j.sessao_unidade} — unidade da sua sessão`;
-  }
-  $('avisoAtraso').innerHTML = emAtraso
-    ? '<div class="warn">⚠ <span>Unidade em atraso — a votação fica suspensa até a regularização com a administração.</span></div>'
-    : '';
-  render();
-}
-
-function render() {
-  $('lista').innerHTML = props.length ? props.map(p => {
-    const tot = p.favor + p.contra;
-    const pf = tot ? p.favor * 100 / tot : 0;
-    const btns = !p.aberta ? '' : emAtraso
-      ? '<div class="voted">Votação suspensa para esta unidade.</div>'
-      : `<div class="vote-row">
-      <button class="vb favor ${p.meu_voto === 'favor' ? 'mine' : ''}" data-v="favor" data-p="${p.id}">👍 A favor</button>
-      <button class="vb contra ${p.meu_voto === 'contra' ? 'mine' : ''}" data-v="contra" data-p="${p.id}">👎 Contra</button>
-     </div>
-     ${p.meu_voto ? `<div class="voted">Seu voto atual: <b>${p.meu_voto === 'favor' ? 'a favor' : 'contra'}</b> — vote de novo para mudar</div>` : ''}`;
-    return `<article class="prop">
-     <div class="prop-top"><span class="pstate ${p.aberta ? 'open' : 'closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
-      <time class="pdate">${esc(p.criado)}</time></div>
-     <h3 class="ptit">${esc(p.titulo)}</h3>
-     ${p.descricao ? `<p class="pdesc">${esc(p.descricao)}</p>` : ''}
-     <div class="vbar"><div class="f" style="width:${pf}%"></div><div class="c" style="width:${100 - pf}%"></div></div>
-     <div class="vnums"><span class="fv">${p.favor} a favor</span><span>${tot} ${tot === 1 ? 'voto' : 'votos'}</span><span class="ct">${p.contra} contra</span></div>
-     ${btns}
-    </article>`;
-  }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
-}
-
-$('lista').addEventListener('click', async e => {
-  const b = e.target.closest('[data-v]');
-  if (!b) return;
-  if (!unidade()) { toast('Selecione bloco e apartamento para votar.', true); $('uBloco').focus(); return; }
-  const fd = new FormData();
-  fd.append('unidade', unidade()); fd.append('voto', b.dataset.v);
-  try {
-    const r = await fetch(`/proposta/${b.dataset.p}/voto`, { method: 'POST', body: fd });
-    const j = await r.json();
-    toast(j.msg || 'Erro ao votar.', !r.ok || !j.ok);
-    if (r.ok && j.ok) await carregar();
-  } catch { toast('Falha de conexão.', true); }
-});
-
-const _sv = (localStorage.getItem('prop_unidade') || '').match(/^([A-B]\\d)-(\\d\\d)$/);
-if (_sv) { $('uBloco').value = _sv[1]; $('uApto').value = _sv[2]; }
-['uBloco', 'uApto'].forEach(id => $(id).addEventListener('change', () => {
-  localStorage.setItem('prop_unidade', unidade());
-  carregar().catch(() => {});
-}));
-carregar().catch(e => toast(e.message, true));
-</script></body></html>"""
 
 
 @app.get('/propostas')
 @need_login
 def propostas_page():
-    return PROPOSTAS_HTML
+    return render_template('propostas.html', heading='Propostas & votações',
+                           active='vot')
 
 
 @app.get('/api/propostas')
@@ -1575,93 +643,6 @@ def alternar_proposta(pid):
 
 # ---------------- perfil da unidade (advertências) ----------------
 
-TRUCK_P = lambda c: (f'<svg width="16" height="12" viewBox="0 0 24 18" fill="{c}" aria-hidden="true">'
-                     '<path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/>'
-                     '<circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>')
-CROSS_P = ('<svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true">'
-           '<rect width="12" height="12" rx="2.5" fill="#fff"/>'
-           '<path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>')
-
-PERFIL_HEAD = """<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>Minha unidade · Elit's Park</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
- :root{--border:rgba(148,163,184,.13);--muted:#91a0b8;--text:#edf3fc;
-  --cyan:#55d5d0;--amber:#f4bd6a}
- *{margin:0;padding:0;box-sizing:border-box}
- body{min-height:100vh;padding:34px 24px 70px;color:var(--text);font-family:'Inter',sans-serif;
-  background:radial-gradient(900px 500px at 8% -8%,rgba(85,213,208,.13),transparent 63%),
-   radial-gradient(700px 430px at 100% 5%,rgba(118,169,255,.10),transparent 65%),
-   linear-gradient(145deg,#080d19,#0a1020 58%,#080d19)}
- .wrap{max-width:760px;margin:0 auto}
- .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
- .brand{display:flex;align-items:center;gap:14px}
- .mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;
-  color:#07131a;background:linear-gradient(145deg,#83e5d4,#50c6c6);font-weight:700;
-  box-shadow:0 8px 28px rgba(85,213,208,.18)}
- .eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
- h1{font-family:'Space Grotesk',sans-serif;font-size:25px;letter-spacing:-.5px}
- .links{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid var(--border);
-  border-radius:13px;background:rgba(12,20,36,.75)}
- .links a{font-size:12.5px;font-weight:600;color:var(--muted);padding:9px 12px;
-  border-radius:9px;text-decoration:none;transition:.18s;white-space:nowrap}
- .links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
- .links a.exit{color:#ff9eaa}
- .intro{margin:28px 0 20px}
- .intro h2{font-family:'Space Grotesk';font-size:clamp(24px,3vw,32px);letter-spacing:-1px}
- .mut2{color:var(--muted);font-size:13.5px;margin-top:6px}
- a.link2{color:var(--cyan)}
- .sect{margin-bottom:26px}
- .sect h3{font-family:'Space Grotesk';font-size:16px;margin-bottom:11px}
- .adv{display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(244,189,106,.45);
-  background:rgba(244,189,106,.07);border-radius:14px;padding:14px 15px;margin-bottom:9px}
- .adv-ic{color:var(--amber);font-size:16px;line-height:1.2}
- .adv time{color:#c9995f;font-size:10.5px;display:block;margin-bottom:4px}
- .adv p{font-size:13.5px;line-height:1.55;color:#f0e6d8;overflow-wrap:anywhere}
- .st{display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid var(--border);
-  border-radius:12px;margin-bottom:8px;background:rgba(4,10,20,.35)}
- .st svg{flex-shrink:0}
- .st b{font-size:13px;display:block}
- .st span{font-size:11.5px;color:var(--muted)}
- .lg{width:10px;height:10px;border-radius:3px;display:inline-block;flex-shrink:0}
- .lg.late{background:rgba(251,113,133,.7)}
- .oc-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
-  padding:11px 2px;border-bottom:1px solid rgba(148,163,184,.08);font-size:12.5px}
- .oc-row:last-child{border-bottom:0}
- .oc-row .t{color:#dce5f2;line-height:1.5;overflow-wrap:anywhere}
- .oc-cat{color:#a6c9ff;background:rgba(118,169,255,.1);padding:3px 7px;border-radius:6px;
-  font-size:10px;font-weight:700;margin-right:6px;white-space:nowrap}
- .oc-side{display:flex;align-items:center;gap:8px;flex-shrink:0}
- .oc-side time{color:#718098;font-size:10.5px;white-space:nowrap}
- .tag{font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:6px;
-  text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
- .tag.ok{color:#8be2c5;background:rgba(52,211,153,.12)}
- .tag.op{color:#f4bd6a;background:rgba(244,189,106,.12)}
- .empty{color:var(--muted);padding:22px 14px;font-size:13px;text-align:center;
-  border:1px dashed var(--border);border-radius:12px}
- @media(max-width:650px){
-  body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
-  .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
-  .mark{width:40px;height:40px}
- }
-</style><link rel="stylesheet" href="/theme.css"></head><body>
-<div class="wrap">
- <div class="topbar">
-  <div class="brand"><div class="mark" aria-hidden="true">EP</div>
-   <div><div class="eyebrow">Condomínio Elit's Park</div><h1>Minha unidade</h1></div>
-  </div>
-  <div class="links">
-   <a href="/">Painel</a><a href="/historico.html">Histórico</a>
-   <a href="/ocorrencia">Ocorrência</a><a href="/propostas">Votações</a>
-   <a class="exit" href="/logout">Sair</a>
-  </div>
- </div>
-"""
-
-
 @app.route('/perfil')
 @need_login
 def perfil():
@@ -1675,41 +656,15 @@ def perfil():
         if sel in todas:
             uid, admin_preview = sel, True
         else:
-            opts = ''.join(f'<option>{u}</option>' for u in todas)
-            return render_template_string(
-                PAGE, titulo='Perfis',
-                body=f'<div class="card"><div class="eyebrow">Administração</div>'
-                     f'<h1>Inspecionar perfil</h1>'
-                     f'<p class="mut">Escolha a unidade para ver o que o morador vê.</p>'
-                     f'<form method="get"><label>Unidade</label>'
-                     f'<select name="unidade" required><option value="">Selecione…</option>{opts}</select>'
-                     f'<button type="submit">Ver perfil</button></form>'
-                     f'<div class="links"><a href="/admin">← Admin</a>'
-                     f'<a href="/logout">Sair</a></div></div>')
+            return render_template('perfil.html', admin_pick=True, todas=todas)
     if not uid:
-        blocos = ''.join(f'<option>{b}</option>' for b in BLOCOS)
-        aptos = ''.join(f'<option>{a}</option>' for a in sorted(APTOS))
         msgs = {'unidade': 'Selecione bloco e apartamento.',
                 'semcodigo': 'Esta unidade ainda não tem código — peça à administração.',
-                'codigo': 'Código incorreto — tente novamente.'}
-        erro = msgs.get(request.args.get('erro'), '')
-        return render_template_string(
-            PAGE, titulo='Minha unidade',
-            body=f'<div class="card"><div class="eyebrow">Perfil do morador</div>'
-                 f'<h1>Minha unidade</h1>'
-                 f'<p class="mut">Identifique-se com sua unidade e o código '
-                 f'fornecido pela administração.</p>'
-                 f'{f"<p class=bad>⚠ {escape(erro)}</p>" if erro else ""}'
-                 f'<form method="post" action="/perfil/acesso">'
-                 f'<label>Unidade</label><div class="ugrid">'
-                 f'<select name="bloco" required><option value="">Bloco…</option>{blocos}</select>'
-                 f'<select name="apto" required><option value="">Apto…</option>{aptos}</select></div>'
-                 f'<label>Código de acesso</label>'
-                 f'<input type="password" name="codigo" inputmode="numeric" '
-                 f'maxlength="4" placeholder="4 dígitos" required>'
-                 f'<button type="submit">Entrar no perfil</button></form>'
-                 f'<div class="links"><a href="/">← Dashboard</a>'
-                 f'<a href="/propostas">Votações</a><a href="/logout">Sair</a></div></div>')
+                'codigo': 'Código ou senha incorretos — tente novamente.'}
+        return render_template(
+            'perfil.html', uid=None,
+            erro=msgs.get(request.args.get('erro')),
+            blocos=BLOCOS, aptos=sorted(APTOS))
     conn = odb()
     fl = conn.execute(
         'SELECT em_atraso, mud_in, mud_out, idoso75 FROM unidades WHERE unidade = ?',
@@ -1721,40 +676,12 @@ def perfil():
         'SELECT criado_em, categoria, texto, resolvida FROM ocorrencias '
         'WHERE unidade = ? ORDER BY id DESC LIMIT 20', (uid,)).fetchall()
     bloco, num = uid.split('-')
-    adv_html = ''.join(
-        f'<div class="adv"><span class="adv-ic">⚠</span>'
-        f'<div><time>{escape(c)}</time><p>{escape(t)}</p></div></div>'
-        for c, t in advs) or '<div class="empty">Nenhuma advertência — tudo certo por aqui.</div>'
-    sts = []
-    if fl and fl[0]:
-        sts.append('<div class="st"><i class="lg late"></i><div><b>Em atraso</b>'
-                   '<span>Regularize com a administração para recuperar o voto nas propostas.</span></div></div>')
-    if fl and fl[1]:
-        sts.append(f'<div class="st">{TRUCK_P("#34d399")}<div><b>Mudança · entrada</b>'
-                   '<span>Registrada pela administração.</span></div></div>')
-    if fl and fl[2]:
-        sts.append(f'<div class="st">{TRUCK_P("#fb923c")}<div><b>Mudança · saída</b>'
-                   '<span>Registrada pela administração.</span></div></div>')
-    if fl and fl[3]:
-        sts.append(f'<div class="st">{CROSS_P}<div><b>Morador 75+</b>'
-                   '<span>Cadastro de morador idoso ativo.</span></div></div>')
-    st_html = ''.join(sts) or '<div class="empty">Unidade em dia — nenhuma marcação.</div>'
-    ocs_html = ''.join(
-        f'<div class="oc-row"><div><span class="oc-cat">{escape(cat or "Outro")}</span>'
-        f'<span class="t">{escape(t)}</span></div>'
-        f'<div class="oc-side"><time>{escape(c[:10])}</time>'
-        f'<span class="tag {"ok" if r else "op"}">{"resolvida" if r else "aberta"}</span></div></div>'
-        for c, cat, t, r in ocs) or '<div class="empty">Você ainda não registrou ocorrências.</div>'
-    trocar = ('<a class="link2" href="/perfil">escolher outra unidade</a>'
-              if admin_preview else '<a class="link2" href="/perfil/sair">trocar unidade</a>')
-    return PERFIL_HEAD + f"""
- <section class="intro"><h2>{escape(uid)}</h2>
-  <p class="mut2">Bloco {escape(bloco)} · {escape(num[0])}º andar · Apto {escape(num)}
-   {('· <b style="color:var(--amber)">visão do administrador</b> · ') if admin_preview else '· '}{trocar}</p></section>
- <div class="sect"><h3>Advertências da administração</h3>{adv_html}</div>
- <div class="sect"><h3>Situação da unidade</h3>{st_html}</div>
- <div class="sect"><h3>Suas ocorrências registradas</h3>{ocs_html}</div>
-</div></body></html>"""
+    flags = {'a': bool(fl[0]), 'mi': bool(fl[1]),
+             'mo': bool(fl[2]), 'i': bool(fl[3])} if fl else {}
+    return render_template('perfil.html', uid=uid, bloco=bloco, num=num,
+                           admin_preview=admin_preview, flags=flags,
+                           advs=advs, ocs=ocs,
+                           heading='Minha unidade', active='perfil')
 
 
 @app.post('/perfil/acesso')
@@ -1794,7 +721,9 @@ def dadosjs():
 
 @app.get('/theme.css')
 def theme_css():
-    return send_from_directory(BASE, 'theme.css', mimetype='text/css')
+    # compat com links antigos → o compilado Tailwind/Preline
+    return send_from_directory(BASE / 'static' / 'css', 'theme.css',
+                               mimetype='text/css')
 
 
 @app.get('/<path:fname>')

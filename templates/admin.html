@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+{% block title %}Admin · Elit's Park{% endblock %}
+{% block body %}
+<div class="mx-auto max-w-[1180px] px-4 pb-16 pt-8">
+ {% include "_nav.html" %}
+
+ <section class="mb-5 flex flex-wrap items-end justify-between gap-4">
+  <div>
+   <h2 class="ep-title text-[clamp(26px,3vw,36px)]">Olá, administrador.</h2>
+   <p class="ep-mut mt-1.5">Visão geral e tarefas do condomínio em um só lugar.</p>
+  </div>
+  <span class="ep-chip"><i class="h-[7px] w-[7px] rounded-full bg-brand-400 shadow-[0_0_12px_#55d5d0]"></i>Dados atualizados agora</span>
+ </section>
+
+ <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4" id="kpis"></div>
+
+ <div class="mb-4 grid gap-4 lg:grid-cols-[minmax(320px,.88fr)_minmax(0,1.12fr)]">
+  <div class="ep-card">
+   <div class="mb-4 flex items-start justify-between gap-3">
+    <div><h3 class="ep-title text-[17px]">Atualizar balancete</h3>
+     <p class="mt-1 text-[12.5px] leading-relaxed text-slate-400">Importe o PDF para atualizar os dados de todos os moradores.</p></div>
+    <span class="ep-chip">PDF</span>
+   </div>
+   <div id="drop" class="ep-dropzone" role="button" tabindex="0" aria-label="Selecionar ou arrastar PDF">
+    <div class="mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-brand-400/15 text-brand-300" aria-hidden="true">
+     <svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4a1 1 0 001 1h12a1 1 0 001-1v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="text-sm font-bold">Solte o balancete aqui</div>
+    <div class="mt-1.5 text-xs text-slate-400">PDF do Condomínio21 · o mês é detectado automaticamente</div>
+    <span class="mt-3 inline-flex rounded-lg border border-brand-400/30 bg-brand-400/10 px-3 py-2 text-xs font-bold text-brand-300">Escolher arquivo</span>
+   </div>
+   <input type="file" id="fileInp" accept="application/pdf,.pdf" class="hidden">
+   <div id="upStatus" class="mt-3 hidden rounded-lg bg-sky-400/10 p-3 text-[12.5px] text-sky-200"></div>
+   <div class="mt-3 flex items-center gap-2 text-[11.5px] text-slate-400">
+    <span class="text-brand-400">✓</span> Reenviar um mês substitui os dados anteriores daquele mês.</div>
+  </div>
+
+  <div class="ep-card">
+   <div class="mb-4 flex items-start justify-between gap-3">
+    <div><h3 class="ep-title text-[17px]">Livro de ocorrências</h3>
+     <p class="mt-1 text-[12.5px] leading-relaxed text-slate-400">Registros recentes · visíveis somente para administração.</p></div>
+    <span class="ep-chip" id="ocN">0 registros</span>
+   </div>
+   <div class="mb-3"><input class="ep-input-sm" type="search" id="ocSearch" placeholder="Filtrar por categoria, unidade ou texto…"></div>
+   <div class="ep-scroll-y flex max-h-[280px] flex-col gap-2" id="ocList"></div>
+  </div>
+ </div>
+
+ <section class="mb-4">
+  <div class="mb-3.5 flex flex-wrap items-end justify-between gap-3">
+   <div><h3 class="ep-title text-lg">Propostas & votações</h3>
+    <p class="mt-1 text-xs text-slate-400">Publique ideias e obras para os moradores votarem — um voto por unidade.</p></div>
+   <span class="ep-chip" id="propN"></span>
+  </div>
+  <div class="grid items-start gap-4 lg:grid-cols-[minmax(280px,.7fr)_minmax(0,1.3fr)]">
+   <form class="ep-card" id="propForm">
+    <input type="text" id="propTitulo" class="ep-input-sm mb-2.5" placeholder="Título — ex.: Pintura da fachada" required maxlength="120">
+    <textarea id="propDesc" rows="5" class="ep-input-sm mb-3 resize-y" placeholder="Detalhes: custo estimado, prazo, benefícios…"></textarea>
+    <button type="submit" class="ep-btn-brand w-full">Publicar para votação</button>
+   </form>
+   <div class="ep-scroll-y flex max-h-[380px] flex-col gap-2.5" id="propList"></div>
+  </div>
+ </section>
+
+ <section class="mb-4">
+  <div class="mb-3.5 flex flex-wrap items-end justify-between gap-3">
+   <div><h3 class="ep-title text-lg">Desenho predial</h3>
+    <p class="mt-1 text-xs text-slate-400">Toque em uma unidade para ver o perfil — unidades em atraso não votam.</p></div>
+   <span class="ep-chip" id="lateN"></span>
+  </div>
+  <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6" id="blocks"></div>
+  <div class="mt-3.5 flex flex-wrap gap-3.5 text-[11px] text-slate-400">
+   <span><i class="ep-lg bg-rose-400/70"></i>Em atraso</span>
+   <span><svg class="mr-1 inline h-[10px] w-[13px] align-[-2px]" viewBox="0 0 24 18" fill="#34d399" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · entrada</span>
+   <span><svg class="mr-1 inline h-[10px] w-[13px] align-[-2px]" viewBox="0 0 24 18" fill="#fb923c" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · saída</span>
+   <span><svg class="mr-1 inline h-[10px] w-[10px] align-[-2px]" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>Idoso 75+</span>
+   <span><i class="ep-lg rounded-full bg-amber-400"></i>Ocorrência aberta</span>
+   <span><i class="ep-advb" style="position:static">!</i>Advertência</span>
+  </div>
+  <div class="mt-3.5 flex flex-wrap items-center gap-2.5">
+   <span class="text-[11.5px] text-slate-400" id="codN"></span>
+   <button class="ep-btn-ghost ep-btn-xs" id="codBtn">Gerar códigos pendentes</button>
+   <button class="ep-btn-ghost ep-btn-xs" id="mailBtn">Enviar códigos por e-mail</button>
+  </div>
+  <div id="codOut" class="mt-3 hidden">
+   <div class="ep-sec-t">Códigos gerados — copie e distribua (não ficam salvos em texto puro)</div>
+   <textarea readonly id="codTxt" class="ep-input h-[170px] font-mono text-[11.5px]"></textarea></div>
+  <div id="unitPanel"></div>
+ </section>
+
+ <section class="mb-4">
+  <div class="mb-3.5 flex flex-wrap items-end justify-between gap-3">
+   <div><h3 class="ep-title text-lg">Balancetes importados</h3>
+    <p class="mt-1 text-xs text-slate-400">Histórico de arquivos que formam a base atual do dashboard.</p></div>
+   <span class="ep-chip" id="monthN"></span>
+  </div>
+  <div class="ep-tablewrap"><table class="ep-table"><thead>
+   <tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Água</th><th></th></tr>
+  </thead><tbody id="tblBody"></tbody></table></div>
+ </section>
+
+ <p class="mt-4 text-center text-[11px] text-slate-500">Os dados publicados são compartilhados por todos os moradores.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let allOccurrences = [];
+
+async function resumo() {
+  const res = await fetch('/api/resumo');
+  if (!res.ok) throw new Error('Não foi possível carregar o painel.');
+  const r = await res.json();
+  const ult = r.meses[r.meses.length - 1] || {};
+  $('kpis').innerHTML = `
+   <div class="ep-kpi"><div class="ep-kpi-l">Meses registrados</div><div class="ep-kpi-v">${r.meses.length}</div></div>
+   <div class="ep-kpi"><div class="ep-kpi-l">Último balancete</div><div class="ep-kpi-v text-indigo-200">${esc(ult.label || '—')}</div></div>
+   <div class="ep-kpi"><div class="ep-kpi-l">Água · último mês</div><div class="ep-kpi-v text-brand-300">${ult.agua != null ? BRL.format(ult.agua) : '—'}</div></div>
+   <div class="ep-kpi"><div class="ep-kpi-l">Ocorrências abertas</div><div class="ep-kpi-v">${r.ocorrencias.filter(o => !o.resolvida).length}</div></div>`;
+  allOccurrences = r.ocorrencias;
+  $('ocN').textContent = `${r.ocorrencias.length} ${r.ocorrencias.length === 1 ? 'registro' : 'registros'}`;
+  $('monthN').textContent = `${r.meses.length} meses`;
+  renderOccurrences();
+  renderProps(r.propostas);
+  allAdvs = r.advertencias;
+  codeSet = new Set(r.codigos);
+  uEmails = r.emails || {};
+  $('codN').textContent = `${r.codigos.length}/144 códigos emitidos`;
+  lastMapa = r.mapa;
+  renderBlocks(r.mapa);
+  $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
+   <td><span class="inline-flex items-center gap-2 font-semibold text-slate-100">
+    <i class="h-1.5 w-1.5 rounded-full ${i === 0 ? 'bg-brand-400 shadow-[0_0_9px_rgba(85,213,208,.7)]' : 'bg-slate-600'}"></i>${esc(m.label)}</span></td>
+   <td>${BRL.format(m.rec)}</td><td>${BRL.format(m.desp)}</td>
+   <td>${BRL.format(m.agua)}</td><td><a class="font-bold text-brand-300 hover:underline" href="/pdfs/${encodeURIComponent(m.am)}.pdf">Baixar PDF ↗</a></td></tr>`).join('');
+}
+
+function renderOccurrences() {
+  const q = $('ocSearch').value.trim().toLocaleLowerCase('pt-BR');
+  const items = allOccurrences.filter(o =>
+    [o.categoria, o.unidade, o.nome, o.texto].join(' ').toLocaleLowerCase('pt-BR').includes(q)
+  ).slice(0, 12);
+  $('ocList').innerHTML = items.length
+    ? items.map(o => `<article class="rounded-xl border border-slate-400/10 bg-black/25 p-3 ${o.resolvida ? 'opacity-50' : ''}">
+       <div class="mb-1.5 flex items-center justify-between gap-2">
+        <span class="${o.resolvida ? 'ep-badge-ok' : 'ep-badge-cat'}">${esc(o.categoria || 'Outro')}</span>
+        <div class="flex items-center gap-2"><time class="text-[10.5px] text-slate-500">${esc(o.criado)}</time>
+         <button class="ep-btn-ghost ep-btn-xs" data-oc="${o.id}" title="${o.resolvida ? 'Reabrir' : 'Marcar como resolvida'}">${o.resolvida ? '↩ reabrir' : '✓ resolver'}</button></div></div>
+       <div class="mb-1 text-[11.5px] text-slate-400">${esc(o.unidade || 'Sem unidade')} · ${esc(o.nome || 'Anônimo')}</div>
+       <div class="text-[12.5px] leading-relaxed text-slate-200 [overflow-wrap:anywhere] ${o.resolvida ? 'line-through' : ''}">${esc(o.texto)}</div></article>`).join('')
+    : `<div class="ep-empty">${q ? 'Nenhuma ocorrência corresponde à busca.' : 'Tudo em dia — nenhuma ocorrência registrada.'}</div>`;
+}
+
+function renderProps(props) {
+  $('propN').textContent = `${props.length} ${props.length === 1 ? 'proposta' : 'propostas'}`;
+  $('propList').innerHTML = props.length ? props.map(p => {
+    const tot = p.favor + p.contra;
+    const pf = tot ? p.favor * 100 / tot : 0;
+    return `<article class="rounded-xl border border-slate-400/10 bg-black/25 p-3.5">
+     <div class="mb-1.5 flex items-center justify-between gap-2">
+      <span class="${p.aberta ? 'ep-badge-open' : 'ep-badge-closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
+      <time class="text-[10.5px] text-slate-500">${esc(p.criado)}</time></div>
+     <h4 class="ep-title mb-1 text-[14.5px]">${esc(p.titulo)}</h4>
+     ${p.descricao ? `<p class="text-xs leading-relaxed text-slate-400 [overflow-wrap:anywhere]">${esc(p.descricao)}</p>` : ''}
+     <div class="ep-vbar"><div class="f" style="width:${pf}%"></div><div class="c" style="width:${100 - pf}%"></div></div>
+     <div class="flex justify-between text-[11px] text-slate-400">
+      <span class="font-bold text-emerald-400">${p.favor} a favor</span>
+      <span>${tot} ${tot === 1 ? 'voto' : 'votos'}</span>
+      <span class="font-bold text-rose-400">${p.contra} contra</span></div>
+     <button class="ep-btn-ghost ep-btn-xs mt-2.5" data-prop="${p.id}">${p.aberta ? 'Encerrar votação' : 'Reabrir votação'}</button>
+    </article>`;
+  }).join('') : '<div class="ep-empty">Nenhuma proposta publicada ainda.</div>';
+}
+
+const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
+let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {}, uEmails = {};
+const FLAG_TXT = { a: 'em atraso', mi: 'mudança (entrada)', mo: 'mudança (saída)', i: 'idoso 75+' };
+const TRUCK = c => `<svg width="12" height="9" viewBox="0 0 24 18" fill="${c}" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>`;
+const CROSS = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>';
+
+function renderBlocks(mapa) {
+  const nLate = Object.values(mapa).filter(s => s.a).length;
+  $('lateN').textContent = `${nLate} em atraso`;
+  $('blocks').innerHTML = BLOCOS.map(b => {
+    let cells = '', nFlag = 0;
+    for (let f = 6; f >= 1; f--)
+      for (let n = 1; n <= 4; n++) {
+        const id = `${b}-${f}${n}`, st = mapa[id] || {};
+        if (st.a) nFlag++;
+        const ico = [st.mi && TRUCK('#34d399'), st.mo && TRUCK('#fb923c'), st.i && CROSS]
+          .filter(Boolean).join('');
+        const tip = [id, ...Object.keys(FLAG_TXT).filter(k => st[k]).map(k => FLAG_TXT[k]),
+          st.oc ? `${st.oc} ocorrência(s) aberta(s)` : '',
+          st.adv ? `${st.adv} advertência(s)` : ''].filter(Boolean).join(' · ');
+        cells += `<button class="ep-apt ${st.a ? 'ep-apt-late' : ''} ${selUnit === id ? 'ep-apt-sel' : ''}"
+          data-apt="${id}" title="${esc(tip)}">${f}${n}${ico ? `<span class="ep-apt-icons">${ico}</span>` : ''}${st.oc ? `<span class="ep-ocb">${st.oc}</span>` : ''}${st.adv ? '<i class="ep-advb">!</i>' : ''}</button>`;
+      }
+    return `<div class="ep-block"><div class="ep-bname">${b}</div>
+      <div class="ep-bgrid">${cells}</div>
+      <div class="mt-2 text-center text-[9.5px] text-slate-500">${nFlag ? nFlag + ' em atraso' : 'em dia'}</div></div>`;
+  }).join('');
+  if (selUnit) renderUnitPanel();
+}
+
+function renderUnitPanel() {
+  const st = lastMapa[selUnit] || {};
+  const [bloco, num] = selUnit.split('-');
+  const ocs = allOccurrences.filter(o => !o.resolvida && o.unidade === selUnit);
+  const advs = allAdvs.filter(a => a.unidade === selUnit);
+  const hasCode = codeSet.has(selUnit);
+  const flag = (k, label, icon) => `<label class="ep-uflag"><input type="checkbox" data-flag="${k}" ${st[k] ? 'checked' : ''}>${icon || ''}${label}</label>`;
+  $('unitPanel').innerHTML = `<div class="ep-upanel">
+   <div class="mb-3 flex items-start justify-between"><div>
+    <h3 class="ep-title text-[17px]">${selUnit}</h3>
+    <div class="mt-1 text-[11px] text-slate-400">Bloco ${bloco} · ${num[0]}º andar · Apto ${num}</div></div>
+    <button class="text-xl leading-none text-slate-400 transition hover:text-slate-100" data-close aria-label="Fechar">×</button></div>
+   <div class="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+    ${flag('a', 'Em atraso — sem voto')}
+    ${flag('mi', 'Mudança · entrada', TRUCK('#34d399'))}
+    ${flag('mo', 'Mudança · saída', TRUCK('#fb923c'))}
+    ${flag('i', 'Morador 75+', CROSS)}
+   </div>
+   <div class="ep-sec"><div class="ep-sec-t">Ocorrências abertas</div>
+    ${ocs.length ? ocs.map(o => `<div class="border-b border-slate-400/10 py-1.5 text-xs text-slate-200 last:border-b-0"><span class="ep-badge-cat mr-1">${esc(o.categoria || 'Outro')}</span> ${esc(o.texto)}</div>`).join('')
+     : '<div class="text-xs text-slate-500">Nenhuma em aberto.</div>'}</div>
+   <div class="ep-sec"><div class="ep-sec-t">Advertências — visíveis só no perfil do morador</div>
+    <div class="mb-2 flex gap-2"><input type="text" id="advInp" maxlength="300" class="ep-input-sm flex-1"
+      placeholder="Descreva a advertência…"><button class="ep-btn-amber ep-btn-xs" data-adv>Emitir</button></div>
+    ${advs.length ? advs.map(a => `<div class="flex items-start justify-between gap-2.5 border-b border-slate-400/10 py-2 text-xs last:border-b-0"><span class="leading-relaxed text-amber-50 [overflow-wrap:anywhere]">${esc(a.texto)}</span>
+      <span class="flex shrink-0 items-center gap-1.5"><time class="text-[10px] text-slate-500 whitespace-nowrap">${esc(a.criado.slice(0, 10))}</time>
+      <button class="text-[15px] leading-none text-slate-500 transition hover:text-rose-300" data-advdel="${a.id}" title="Remover">×</button></span></div>`).join('')
+     : '<div class="text-xs text-slate-500">Nenhuma registrada.</div>'}
+   </div>
+   <div class="ep-sec"><div class="ep-sec-t">E-mail do morador</div>
+    <div class="flex gap-2"><input type="email" id="mailInp" maxlength="120" class="ep-input-sm flex-1"
+      placeholder="email@exemplo.com" value="${esc(uEmails[selUnit] || '')}">
+     <button class="ep-btn-ghost ep-btn-xs" data-mail>Salvar</button>
+     <button class="ep-btn-brand ep-btn-xs" data-mailsend ${uEmails[selUnit] ? '' : 'disabled'}
+      title="Gera código temporário e envia por e-mail (também redefine a senha)">Enviar código</button></div>
+    ${!uEmails[selUnit] ? '<div class="mt-1 text-[10.5px] text-slate-500">Salve o e-mail para habilitar o envio.</div>' : ''}
+   </div>
+   <div class="ep-sec"><div class="ep-sec-t">Código de acesso do morador</div>
+    <div class="flex items-center gap-2.5"><span class="text-[11.5px] ${hasCode ? 'text-emerald-300' : 'text-slate-400'}">${hasCode ? '✓ Código ativo' : 'Sem código — o morador não acessa o perfil'}</span>
+     <button class="ep-btn-ghost ep-btn-xs" data-cod>${hasCode ? 'Gerar novo código' : 'Gerar código'}</button></div>
+    ${lastCode[selUnit] ? `<div class="mt-2.5 rounded-lg border border-dashed border-brand-400/40 bg-brand-400/10 p-2.5 text-[12.5px] text-slate-300">Código: <b class="font-disp text-base tracking-[2px] text-brand-300">${lastCode[selUnit]}</b><br>
+      <span class="text-[10.5px]">Distribua ao morador — gerar um novo invalida este.</span></div>` : ''}
+    <div class="mt-1.5 text-[10.5px] text-slate-500">Códigos são temporários: no primeiro acesso o morador define a senha pessoal.</div>
+   </div>
+  </div>`;
+}
+
+resumo().catch(e => toast(e.message, true));
+$('ocSearch').addEventListener('input', renderOccurrences);
+$('blocks').addEventListener('click', e => {
+  const b = e.target.closest('[data-apt]');
+  if (!b) return;
+  selUnit = b.dataset.apt;
+  document.querySelectorAll('.ep-apt-sel').forEach(x => x.classList.remove('ep-apt-sel'));
+  b.classList.add('ep-apt-sel');
+  renderUnitPanel();
+});
+$('unitPanel').addEventListener('click', async e => {
+  if (e.target.closest('[data-close]')) {
+    selUnit = null;
+    $('unitPanel').innerHTML = '';
+    document.querySelectorAll('.ep-apt-sel').forEach(x => x.classList.remove('ep-apt-sel'));
+    return;
+  }
+  if (!selUnit) return;
+  try {
+    if (e.target.closest('[data-adv]')) {
+      const inp = $('advInp'), texto = inp.value.trim();
+      if (!texto) { toast('Descreva a advertência.', true); inp.focus(); return; }
+      const fd = new FormData(); fd.append('texto', texto);
+      const r = await fetch(`/admin/unidade/${selUnit}/advertencia`, { method: 'POST', body: fd });
+      const j = await r.json();
+      toast(j.msg || 'Erro.', !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
+      return;
+    }
+    const del = e.target.closest('[data-advdel]');
+    if (del) {
+      const r = await fetch(`/admin/advertencia/${del.dataset.advdel}/remover`, { method: 'POST' });
+      if (!r.ok) throw new Error();
+      await resumo();
+      return;
+    }
+    if (e.target.closest('[data-cod]')) {
+      const r = await fetch(`/admin/unidade/${selUnit}/codigo`, { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
+      lastCode[selUnit] = j.codigo;
+      toast(`Código da unidade ${selUnit}: ${j.codigo}`);
+      await resumo();
+      return;
+    }
+    if (e.target.closest('[data-mail]')) {
+      const inp = $('mailInp'), email = inp.value.trim();
+      const fd = new FormData(); fd.append('email', email);
+      const r = await fetch(`/admin/unidade/${selUnit}/email`, { method: 'POST', body: fd });
+      const j = await r.json();
+      toast(j.msg || (email ? `E-mail de ${selUnit} salvo.` : `E-mail de ${selUnit} removido.`), !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
+      return;
+    }
+    if (e.target.closest('[data-mailsend]')) {
+      const r = await fetch(`/admin/unidade/${selUnit}/email/enviar`, { method: 'POST' });
+      const j = await r.json();
+      toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
+    }
+  } catch (err) { toast(err.message || 'Falha ao atualizar a unidade.', true); }
+});
+$('unitPanel').addEventListener('change', async e => {
+  const cb = e.target.closest('[data-flag]');
+  if (!cb || !selUnit) return;
+  const fd = new FormData(); fd.append('flag', cb.dataset.flag);
+  try {
+    const r = await fetch(`/admin/unidade/${selUnit}/flag`, { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao atualizar.');
+    await resumo();
+  } catch (err) { cb.checked = !cb.checked; toast(err.message || 'Falha ao atualizar a unidade.', true); }
+});
+$('ocList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-oc]');
+  if (!b) return;
+  try {
+    const r = await fetch(`/admin/ocorrencia/${b.dataset.oc}/resolver`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    await resumo();
+  } catch { toast('Falha ao atualizar a ocorrência.', true); }
+});
+$('propForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append('titulo', $('propTitulo').value.trim());
+  fd.append('descricao', $('propDesc').value.trim());
+  try {
+    const r = await fetch('/admin/proposta', { method: 'POST', body: fd });
+    const j = await r.json();
+    toast(j.msg || 'Erro ao publicar.', !r.ok || !j.ok);
+    if (r.ok && j.ok) { $('propForm').reset(); await resumo(); }
+  } catch { toast('Falha de conexão.', true); }
+});
+$('propList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-prop]');
+  if (!b) return;
+  try {
+    const r = await fetch(`/admin/proposta/${b.dataset.prop}/alternar`, { method: 'POST' });
+    if (!r.ok) throw new Error();
+    await resumo();
+  } catch { toast('Falha ao atualizar a proposta.', true); }
+});
+$('codBtn').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/admin/codigos/gerar', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
+    Object.assign(lastCode, j.novos);
+    $('codTxt').value = Object.entries(j.novos).map(([u, c]) => `${u}: ${c}`).join('\n');
+    $('codOut').style.display = j.total ? '' : 'none';
+    toast(j.total ? `${j.total} códigos gerados — copie a lista` : 'Todas as unidades já têm código.', !j.total);
+    await resumo();
+  } catch (err) { toast(err.message || 'Falha ao gerar códigos.', true); }
+});
+$('mailBtn').addEventListener('click', async () => {
+  if (!confirm('Enviar código temporário por e-mail para as unidades com e-mail cadastrado e sem senha própria?')) return;
+  try {
+    const r = await fetch('/admin/codigos/email', { method: 'POST' });
+    const j = await r.json();
+    toast(j.msg || 'Erro ao enviar.', !r.ok || !j.ok);
+    if (r.ok && j.ok) await resumo();
+  } catch (err) { toast(err.message || 'Falha ao enviar códigos.', true); }
+});
+
+const drop = $('drop'), fileInp = $('fileInp'), st = $('upStatus');
+drop.addEventListener('click', () => fileInp.click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInp.click(); } });
+['dragover', 'dragenter'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('on'); }));
+['dragleave', 'drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('on'); }));
+drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) enviar(f); });
+fileInp.addEventListener('change', () => { if (fileInp.files[0]) enviar(fileInp.files[0]); });
+
+async function enviar(f) {
+  if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+    toast('Selecione um arquivo PDF válido.', true); return;
+  }
+  st.textContent = `Processando ${f.name}…`; st.className = 'mt-3 block rounded-lg bg-sky-400/10 p-3 text-[12.5px] text-sky-200';
+  drop.style.pointerEvents = 'none'; drop.style.opacity = '.55';
+  try {
+    const fd = new FormData(); fd.append('pdf', f);
+    const response = await fetch('/upload', { method: 'POST', body: fd });
+    const j = await response.json();
+    if (!response.ok || !j.ok) throw new Error(j.msg || 'Falha na importação.');
+    toast(j.msg, !j.ok);
+    st.textContent = `✓ ${j.msg}`; st.className = 'mt-3 block rounded-lg bg-brand-400/10 p-3 text-[12.5px] text-emerald-300';
+    await resumo();
+  } catch (e) {
+    toast(e.message || 'Falha ao enviar o arquivo.', true);
+    st.textContent = e.message || 'Falha ao processar o PDF.'; st.className = 'mt-3 block rounded-lg bg-rose-400/10 p-3 text-[12.5px] text-rose-300';
+  } finally {
+    drop.style.pointerEvents = ''; drop.style.opacity = '';
+    fileInp.value = '';
+  }
+}
+</script>
+{% endblock %}

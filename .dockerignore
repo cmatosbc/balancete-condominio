@@ -9,3 +9,5 @@ balancetes.db
 docker-compose.yml
 Dockerfile
 .dockerignore
+node_modules
+.env

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Entrar · Elit's Park{% endblock %}
+{% block body %}
+<div class="flex min-h-screen items-center justify-center p-5">
+ <div class="ep-card w-full max-w-[400px]">
+  <div class="text-center text-[34px]" aria-hidden="true">🔒</div>
+  <div class="ep-eyebrow mt-2 text-center">Condomínio Elit's Park</div>
+  <h1 class="ep-title mb-5 text-center text-[22px]">Área dos condôminos</h1>
+
+  {% if erro %}<p class="ep-note-bad mb-4">⚠ {{ erro }}</p>{% endif %}
+
+  <nav class="mb-4 grid grid-cols-2 gap-1.5 rounded-xl border border-slate-400/15 bg-ink-950/60 p-1.5"
+   aria-label="Tipo de acesso" role="tablist" data-hs-tabs>
+   <button type="button" role="tab" id="tab-m" data-hs-tab="#pane-m" aria-controls="pane-m"
+    class="rounded-lg px-3 py-2.5 text-[12.5px] font-bold text-slate-400 transition
+     hs-tab-active:bg-brand-400/15 hs-tab-active:text-slate-100 hs-tab-active:shadow-[inset_0_0_0_1px_rgba(85,213,208,.35)] active">
+    Sou morador</button>
+   <button type="button" role="tab" id="tab-a" data-hs-tab="#pane-a" aria-controls="pane-a"
+    class="rounded-lg px-3 py-2.5 text-[12.5px] font-bold text-slate-400 transition
+     hs-tab-active:bg-brand-400/15 hs-tab-active:text-slate-100 hs-tab-active:shadow-[inset_0_0_0_1px_rgba(85,213,208,.35)]">
+    Administrador</button>
+  </nav>
+
+  <div id="pane-m" role="tabpanel" aria-labelledby="tab-m">
+   <form method="post" action="/login">
+    <input type="hidden" name="modo" value="morador">
+    <label class="ep-label">Unidade</label>
+    <div class="mb-3 grid grid-cols-2 gap-2.5">
+     <select name="bloco" class="ep-input" required>
+      <option value="">Bloco…</option>
+      {% for b in blocos %}<option>{{ b }}</option>{% endfor %}
+     </select>
+     <select name="apto" class="ep-input" required>
+      <option value="">Apto…</option>
+      {% for a in aptos %}<option>{{ a }}</option>{% endfor %}
+     </select>
+    </div>
+    <label class="ep-label">Código de acesso ou sua senha</label>
+    <input type="password" name="codigo" class="ep-input mb-4"
+     placeholder="Código do e-mail ou senha pessoal" required autocomplete="off">
+    <button type="submit" class="ep-btn-sky w-full">Entrar</button>
+   </form>
+  </div>
+
+  <div id="pane-a" role="tabpanel" aria-labelledby="tab-a" class="hidden">
+   <form method="post" action="/login">
+    <input type="hidden" name="modo" value="admin">
+    <label class="ep-label">Senha</label>
+    <input type="password" name="senha" class="ep-input mb-4"
+     placeholder="Senha de admin (ou acesso geral)" autocomplete="current-password">
+    <button type="submit" class="ep-btn-sky w-full">Entrar</button>
+   </form>
+  </div>
+
+  <p class="ep-mut mt-4 text-center text-[12px]">
+   Morador: use o código da sua unidade.<br>Não tem código? Peça à administração.
+  </p>
+ </div>
+</div>
+{% endblock %}

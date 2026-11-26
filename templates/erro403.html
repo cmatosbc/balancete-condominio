@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Sem permissão · Elit's Park{% endblock %}
+{% block body %}
+<div class="flex min-h-screen items-center justify-center p-5">
+ <div class="ep-card w-full max-w-[400px] text-center">
+  <div class="text-[34px]" aria-hidden="true">⛔</div>
+  <h1 class="ep-title mb-1 mt-2 text-[22px]">Área restrita</h1>
+  <p class="ep-mut mb-5">Somente o administrador pode acessar.</p>
+  <div class="flex justify-between text-[13px]">
+   <a class="font-semibold text-brand-300 hover:underline" href="/">← Dashboard</a>
+   <a class="font-semibold text-brand-300 hover:underline" href="/logout">Sair</a>
+  </div>
+ </div>
+</div>
+{% endblock %}

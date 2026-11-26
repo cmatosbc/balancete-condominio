@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Ocorrência · Elit's Park{% endblock %}
+{% block body %}
+<div class="mx-auto max-w-[640px] px-4 pb-16 pt-8">
+ {% include "_nav.html" %}
+ <div class="ep-card">
+  <div class="ep-eyebrow mb-1.5">Livro de ocorrências</div>
+  <h2 class="ep-title mb-1 text-xl">Registrar ocorrência</h2>
+  <p class="ep-mut mb-5">Vai direto para a administração — outros condôminos não veem.</p>
+
+  {% if ok %}<p class="ep-note-ok mb-4">✓ Ocorrência registrada — a administração foi notificada.</p>{% endif %}
+  {% if erro %}<p class="ep-note-bad mb-4">⚠ {{ erro }}</p>{% endif %}
+
+  <form method="post">
+   <label class="ep-label">Unidade (opcional)</label>
+   <div class="mb-3 grid grid-cols-2 gap-2.5">
+    <select name="bloco" id="blocoSel" class="ep-input">
+     <option value="">Área comum / outra</option>
+     {% for b in blocos %}<option{% if pre_bloco == b %} selected{% endif %}>{{ b }}</option>{% endfor %}
+    </select>
+    <select name="apto" id="aptoSel" class="ep-input"{% if pre_bloco not in blocos %} disabled{% endif %}>
+     <option value="">Apto…</option>
+     {% for a in aptos %}<option{% if pre_apto == a %} selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+   </div>
+   <label class="ep-label">Seu nome (opcional)</label>
+   <input type="text" name="nome" class="ep-input mb-3" placeholder="Anônimo se vazio">
+   <label class="ep-label">Categoria</label>
+   <select name="categoria" class="ep-input mb-3">
+    {% for c in categorias %}<option>{{ c }}</option>{% endfor %}
+   </select>
+   <label class="ep-label">Ocorrência</label>
+   <textarea name="texto" class="ep-input mb-4 min-h-[110px] resize-y" required
+    placeholder="Descreva o que aconteceu, onde e quando"></textarea>
+   <button type="submit" class="ep-btn-sky w-full">Registrar</button>
+  </form>
+ </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const b = $('blocoSel'), a = $('aptoSel');
+b.addEventListener('change', () => { a.disabled = !b.value; if (!b.value) a.value = ''; });
+</script>
+{% endblock %}

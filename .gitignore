@@ -3,3 +3,5 @@ __pycache__/
 .DS_Store
 balancetes.db*
 data/
+node_modules/
+.env

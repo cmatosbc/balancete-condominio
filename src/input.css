@@ -1,0 +1,329 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen bg-ink-950 text-slate-200 font-sans antialiased;
+    background-image:
+      radial-gradient(900px 500px at 8% -8%, rgba(85,213,208,.13), transparent 63%),
+      radial-gradient(700px 430px at 100% 5%, rgba(118,169,255,.10), transparent 65%),
+      linear-gradient(145deg, #080d19, #0a1020 58%, #080d19);
+    background-attachment: fixed;
+  }
+  ::selection { @apply bg-brand-400/30; }
+}
+
+@layer components {
+  /* ---------- superfícies ---------- */
+  .ep-card {
+    @apply rounded-2xl border border-slate-400/15 p-5 shadow-card;
+    background: linear-gradient(155deg, rgba(17,27,46,.91), rgba(12,19,34,.88));
+  }
+  .ep-panel {
+    @apply rounded-xl border border-slate-400/15 bg-ink-900/60;
+  }
+  .ep-inset { @apply rounded-lg border border-slate-400/10 bg-black/25; }
+
+  /* ---------- botões ---------- */
+  .ep-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+           text-sm font-bold transition cursor-pointer select-none
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .ep-btn-brand {
+    @apply ep-btn text-ink-950;
+    background: linear-gradient(135deg, #83e5d4, #50c6c6);
+  }
+  .ep-btn-brand:hover { filter: brightness(1.08); }
+  .ep-btn-ghost {
+    @apply ep-btn border border-slate-400/30 text-slate-400 hover:text-slate-100
+           hover:border-slate-400/55 bg-transparent;
+  }
+  .ep-btn-amber { @apply ep-btn bg-amber-400 text-amber-950 hover:brightness-110; }
+  .ep-btn-sky   { @apply ep-btn text-ink-950 hover:brightness-110;
+                  background: linear-gradient(135deg, #38bdf8, #818cf8); }
+  .ep-btn-xs    { @apply px-2.5 py-1 text-[11px] rounded-md; }
+  .ep-btn-favor {
+    @apply ep-btn border border-emerald-400/40 bg-emerald-400/10 text-emerald-300
+           hover:bg-emerald-400/20;
+  }
+  .ep-btn-contra {
+    @apply ep-btn border border-rose-400/40 bg-rose-400/10 text-rose-300
+           hover:bg-rose-400/20;
+  }
+
+  /* ---------- formulários ---------- */
+  .ep-label {
+    @apply block text-[11px] font-semibold uppercase tracking-wider
+           text-slate-400 mb-1.5;
+  }
+  .ep-input {
+    @apply w-full rounded-lg border border-slate-400/25 bg-ink-950/70 px-3.5 py-2.5
+           text-[15px] text-slate-100 outline-none transition
+           placeholder:text-slate-500
+           focus:border-brand-400/60 focus:ring-2 focus:ring-brand-400/20
+           disabled:opacity-50;
+  }
+  .ep-input-sm { @apply ep-input px-3 py-2 text-[13px]; }
+  select.ep-input, select.ep-input-sm { @apply cursor-pointer; }
+
+  /* ---------- navegação ---------- */
+  .ep-topnav {
+    @apply flex items-center gap-1 rounded-xl border border-slate-400/15
+           bg-ink-850/80 p-1 backdrop-blur;
+  }
+  .ep-navlink {
+    @apply rounded-lg px-3 py-2 text-[12.5px] font-semibold text-slate-400
+           transition hover:bg-white/5 hover:text-slate-100 whitespace-nowrap;
+  }
+  .ep-navlink-on { @apply ep-navlink text-ink-950 bg-brand-400 hover:bg-brand-300 hover:text-ink-950; }
+  .ep-navlink-exit { @apply ep-navlink text-rose-300 hover:bg-rose-400/10 hover:text-rose-200; }
+  .ep-mark {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-2xl font-disp
+           font-bold text-ink-950;
+    background: linear-gradient(145deg, #83e5d4, #50c6c6);
+    box-shadow: 0 8px 28px rgba(85,213,208,.18);
+  }
+  .ep-eyebrow {
+    @apply text-[10px] font-bold uppercase tracking-[2.5px] text-brand-400;
+  }
+
+  /* ---------- badges / estados ---------- */
+  .ep-badge {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px]
+           font-bold uppercase tracking-wide whitespace-nowrap;
+  }
+  .ep-badge-open   { @apply ep-badge text-emerald-300 bg-brand-400/15 border border-brand-400/30; }
+  .ep-badge-closed { @apply ep-badge text-slate-400 bg-slate-400/10 border border-slate-400/20; }
+  .ep-badge-cat    { @apply ep-badge text-sky-300 bg-sky-400/10; }
+  .ep-badge-warn   { @apply ep-badge text-amber-300 bg-amber-400/15; }
+  .ep-badge-ok     { @apply ep-badge text-emerald-300 bg-emerald-400/15; }
+  .ep-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border
+           border-brand-400/25 bg-brand-400/10 px-2.5 py-1 text-[11px]
+           font-bold text-brand-300 whitespace-nowrap;
+  }
+
+  /* ---------- alertas ---------- */
+  .ep-note-ok {
+    @apply rounded-lg border border-emerald-400/30 bg-emerald-400/10
+           px-3.5 py-2.5 text-[13px] text-emerald-300;
+  }
+  .ep-note-bad {
+    @apply rounded-lg border border-rose-400/30 bg-rose-400/10
+           px-3.5 py-2.5 text-[13px] text-rose-300;
+  }
+  .ep-note-warn {
+    @apply flex items-center gap-2.5 rounded-xl border border-amber-400/35
+           bg-amber-400/10 px-4 py-3 text-[13px] text-amber-200;
+  }
+  .ep-note-info {
+    @apply rounded-lg border border-sky-400/25 bg-sky-400/10
+           px-3.5 py-2.5 text-[13px] text-sky-200;
+  }
+  .ep-empty {
+    @apply rounded-xl border border-dashed border-slate-400/15 p-6 text-center
+           text-[13px] text-slate-500;
+  }
+
+  /* ---------- tabela ---------- */
+  .ep-tablewrap { @apply overflow-x-auto rounded-xl border border-slate-400/15; }
+  .ep-table { @apply w-full border-collapse text-[13px] whitespace-nowrap; }
+  .ep-table thead th {
+    @apply border-b border-slate-400/15 bg-black/20 px-3.5 py-3 text-right
+           text-[10px] font-bold uppercase tracking-wider text-slate-500;
+  }
+  .ep-table thead th:first-child { @apply text-left; }
+  .ep-table tbody td {
+    @apply border-b border-slate-400/10 px-3.5 py-3 text-right text-slate-300;
+  }
+  .ep-table tbody td:first-child { @apply text-left; }
+  .ep-table tbody tr:last-child td { @apply border-b-0; }
+  .ep-table tbody tr:hover { @apply bg-brand-400/5; }
+
+  /* ---------- KPI ---------- */
+  .ep-kpi {
+    @apply relative overflow-hidden rounded-2xl border border-slate-400/15
+           p-4 min-h-[96px];
+    background: linear-gradient(145deg, rgba(18,29,49,.9), rgba(12,20,36,.82));
+  }
+  .ep-kpi::after {
+    content: ''; @apply absolute -right-9 -top-11 h-24 w-24 rounded-full bg-brand-400/10;
+  }
+  .ep-kpi-l { @apply text-[10px] font-bold uppercase tracking-widest text-slate-400; }
+  .ep-kpi-v { @apply mt-2.5 font-disp text-2xl tracking-tight text-slate-100; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    @apply fixed bottom-6 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 translate-y-20
+           rounded-xl border border-brand-400/40 bg-ink-800 px-5 py-3 text-[13px]
+           opacity-0 shadow-toast transition-all duration-200 pointer-events-none;
+  }
+  #toast.show { @apply translate-y-0 opacity-100 pointer-events-auto; }
+  #toast.bad { @apply border-rose-400/50; }
+
+  /* ---------- desenho predial ---------- */
+  .ep-block { @apply rounded-xl border border-slate-400/15 bg-black/20 p-3; }
+  .ep-bname { @apply mb-2 text-center font-disp text-xs font-bold tracking-widest text-brand-400; }
+  .ep-bgrid { @apply grid grid-cols-4 gap-1.5; }
+  .ep-apt {
+    @apply relative grid aspect-square cursor-pointer place-items-center rounded-md
+           border border-slate-400/15 bg-ink-800/60 font-sans text-[10px]
+           font-semibold text-slate-400 transition
+           hover:scale-110 hover:border-brand-400/70;
+  }
+  .ep-apt-late { @apply border-rose-400/60 bg-rose-400/20 text-rose-200; }
+  .ep-apt-sel  { @apply outline outline-2 outline-offset-1 outline-brand-400; }
+  .ep-apt-icons {
+    @apply pointer-events-none absolute bottom-0.5 left-1/2 flex -translate-x-1/2 items-end gap-0.5;
+  }
+  .ep-ocb {
+    @apply absolute -right-1.5 -top-1.5 grid h-3.5 min-w-[14px] place-items-center
+           rounded-full bg-amber-400 px-0.5 text-[8.5px] font-extrabold text-amber-950;
+  }
+  .ep-advb {
+    @apply absolute -left-1.5 -top-1.5 grid h-3.5 w-3.5 place-items-center
+           rounded-full bg-rose-600 text-[9px] font-extrabold not-italic text-white;
+  }
+  .ep-lg { @apply mr-1.5 inline-block h-2.5 w-2.5 rounded-[3px] align-[-1px]; }
+
+  /* ---------- painel da unidade ---------- */
+  .ep-upanel {
+    @apply mt-4 rounded-2xl border border-brand-400/30 p-4;
+    background: linear-gradient(155deg, rgba(17,27,46,.95), rgba(12,19,34,.9));
+  }
+  .ep-uflag {
+    @apply flex cursor-pointer items-center gap-2 rounded-lg border
+           border-slate-400/15 bg-black/25 px-3 py-2.5 text-[13px] text-slate-300;
+  }
+  .ep-uflag input { @apply h-4 w-4 cursor-pointer accent-teal-400; }
+  .ep-sec { @apply mt-4 border-t border-slate-400/10 pt-3; }
+  .ep-sec-t { @apply mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400; }
+
+  /* ---------- dropzone ---------- */
+  .ep-dropzone {
+    @apply flex min-h-[190px] cursor-pointer flex-col items-center justify-center
+           rounded-xl border border-dashed border-slate-400/40 p-5 text-center
+           transition hover:-translate-y-0.5 hover:border-brand-400/80
+           hover:bg-brand-400/5;
+    background: radial-gradient(240px 130px at 50% 25%, rgba(85,213,208,.08), transparent 80%), rgba(4,10,20,.38);
+  }
+  .ep-dropzone.on { @apply -translate-y-0.5 border-brand-400/80 bg-brand-400/5; }
+
+  /* ---------- votação ---------- */
+  .ep-vbar { @apply my-2.5 flex h-2.5 overflow-hidden rounded-full bg-slate-400/15; }
+  .ep-vbar .f { @apply bg-emerald-400 transition-all duration-500; }
+  .ep-vbar .c { @apply bg-rose-400 transition-all duration-500; }
+  .ep-vb-mine { @apply outline outline-2 outline-offset-1 outline-current; }
+
+  /* ---------- misc ---------- */
+  .ep-mut { @apply text-sm text-slate-400; }
+  .ep-title { @apply font-disp tracking-tight text-slate-50; }
+  .ep-divider { @apply border-t border-slate-400/10; }
+  .ep-scroll-y { @apply overflow-y-auto pr-1; }
+
+  /* ---------- hero de água (index) ---------- */
+  .ep-hero {
+    @apply relative my-4 overflow-hidden rounded-3xl border border-brand-400/30
+           p-8 max-sm:p-6;
+    background:
+      radial-gradient(700px 300px at 15% 0%, rgba(85,213,208,.14), transparent 65%),
+      linear-gradient(160deg, rgba(85,213,208,.10), rgba(10,14,28,.4) 55%),
+      rgba(255,255,255,.035);
+  }
+  .ep-hero::after {
+    content: ''; position: absolute; right: -120px; top: -120px;
+    width: 340px; height: 340px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(85,213,208,.16), transparent 65%);
+  }
+  .ep-hero-big {
+    @apply font-extrabold tracking-tight;
+    font-size: clamp(44px, 6vw, 68px);
+    background: linear-gradient(180deg, #d9fbf6, #55d5d0);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .ep-grad {
+    background: linear-gradient(90deg, #7ee7e0, #55d5d0, #818cf8);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .ep-wstat {
+    @apply rounded-xl border border-brand-400/20 bg-ink-950/50 px-4 py-3.5;
+  }
+  .ep-wstat .k {
+    @apply text-[11.5px] font-semibold uppercase tracking-wider text-brand-300;
+  }
+  .ep-wstat .v { @apply mt-1 text-xl font-extrabold tabular-nums; }
+  .ep-wstat .d { @apply mt-0.5 text-xs text-slate-400; }
+  .ep-inpwrap {
+    @apply flex items-center gap-1.5 rounded-lg border border-brand-400/30
+           bg-ink-950/70 px-2.5 py-1.5 transition;
+  }
+  .ep-inpwrap:focus-within {
+    @apply border-brand-400/80 ring-2 ring-brand-400/20;
+  }
+  .ep-inpwrap span { @apply text-xs font-semibold text-brand-300; }
+  .ep-inpwrap input {
+    @apply w-[84px] bg-transparent text-right text-[15px] font-bold
+           tabular-nums text-slate-100 outline-none;
+  }
+
+  /* ---------- barra do boleto ---------- */
+  .ep-segtrack {
+    @apply flex h-11 overflow-hidden rounded-xl border border-white/10 bg-black/25;
+  }
+  .ep-seg {
+    @apply relative cursor-default transition-[width,filter] duration-300;
+  }
+  .ep-seg:hover { filter: brightness(1.2); }
+  .ep-seg-agua   { background: linear-gradient(90deg, #2aa8a4, #55d5d0); }
+  .ep-seg-outras { background: linear-gradient(90deg, #334155, #475569); }
+  .ep-seg-fundo  { background: repeating-linear-gradient(45deg, rgba(251,191,36,.35) 0 8px, rgba(251,191,36,.18) 8px 16px); }
+  .ep-seg-label {
+    @apply absolute inset-0 flex items-center justify-center overflow-hidden
+           whitespace-nowrap px-1.5 text-xs font-bold text-ink-950;
+  }
+  .ep-seg-outras .ep-seg-label { @apply text-slate-300; }
+  .ep-seg-fundo  .ep-seg-label { @apply text-amber-200; }
+
+  /* ---------- barras horizontais ---------- */
+  .ep-barrow { @apply grid items-center gap-3 text-[13px];
+               grid-template-columns: 190px 1fr 92px; }
+  @media (max-width: 760px) {
+    .ep-barrow { grid-template-columns: 116px 1fr 76px; font-size: 12px; }
+  }
+  .ep-bartrack { @apply h-5 overflow-hidden rounded-md bg-white/5; }
+  .ep-barfill {
+    @apply h-full w-0 rounded-md transition-[width] duration-1000;
+    transition-timing-function: cubic-bezier(.22,.8,.3,1);
+  }
+  .ep-barfill-water {
+    background: linear-gradient(90deg, #2aa8a4, #55d5d0);
+    box-shadow: 0 0 14px rgba(85,213,208,.5);
+  }
+  .ep-barfill-norm { background: linear-gradient(90deg, #475569, #64748b); }
+
+  /* ---------- nota lateral / insights / tooltip ---------- */
+  .ep-note2 {
+    @apply mt-7 border-l-[3px] border-amber-400/50 py-1 pl-4 text-[12.5px]
+           leading-relaxed text-slate-400;
+  }
+  .ep-ins {
+    @apply rounded-xl border border-slate-400/15 bg-ink-950/50 p-3.5
+           text-[13.5px] leading-relaxed text-slate-300;
+  }
+  .ep-ins b { @apply font-semibold text-brand-200; }
+  .ep-tooltip {
+    @apply pointer-events-none fixed z-50 max-w-[300px] rounded-xl border
+           border-brand-400/40 bg-ink-900/95 px-3 py-2.5 text-[12.5px]
+           opacity-0 shadow-toast backdrop-blur transition-opacity duration-150;
+  }
+  .tt-name { @apply font-bold text-brand-200; }
+  .tt-val  { @apply mt-0.5 tabular-nums text-slate-400; }
+
+  /* ---------- stackbar (histórico) ---------- */
+  .ep-stackrow { @apply mb-4; }
+  .ep-stackbar { @apply flex h-[26px] gap-[1.5px] overflow-hidden rounded-lg; }
+  .ep-stackbar div { @apply h-full cursor-default transition; }
+  .ep-stackbar div:hover { filter: brightness(1.35); }
+}

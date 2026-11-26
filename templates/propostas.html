@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Propostas · Elit's Park{% endblock %}
+{% block body %}
+<div class="mx-auto max-w-[760px] px-4 pb-16 pt-8">
+ {% include "_nav.html" %}
+ <section class="mb-5">
+  <h2 class="ep-title text-[clamp(24px,3vw,32px)]">Decida junto.</h2>
+  <p class="ep-mut mt-1.5">Propostas da administração abertas à votação — um voto por
+   unidade, você pode mudar enquanto a votação estiver aberta.</p>
+ </section>
+
+ <div class="ep-card mb-5 flex flex-wrap items-center gap-3 !p-4">
+  <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">Sua unidade</label>
+  <select id="uBloco" class="ep-input-sm w-auto min-w-[110px] flex-1"><option value="">Bloco…</option></select>
+  <select id="uApto" class="ep-input-sm w-auto min-w-[110px] flex-1"><option value="">Apto…</option></select>
+  <span class="unit-hint text-[11px] text-slate-500">Necessária para votar · fica salva neste aparelho</span>
+ </div>
+
+ <div id="avisoAtraso"></div>
+ <div id="lista"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const BLOCOS_P = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
+let props = [], emAtraso = false;
+
+$('uBloco').innerHTML += BLOCOS_P.map(b => `<option>${b}</option>`).join('');
+let _ao = '';
+for (let f = 1; f <= 6; f++) for (let n = 1; n <= 4; n++) _ao += `<option>${f}${n}</option>`;
+$('uApto').innerHTML += _ao;
+
+function unidade() {
+  const b = $('uBloco').value, a = $('uApto').value;
+  return b && a ? `${b}-${a}` : '';
+}
+
+async function carregar() {
+  const u = unidade();
+  const r = await fetch('/api/propostas' + (u ? '?unidade=' + encodeURIComponent(u) : ''));
+  if (!r.ok) throw new Error('Não foi possível carregar as propostas.');
+  const j = await r.json();
+  props = j.propostas;
+  emAtraso = j.unidade_em_atraso;
+  if (j.sessao_unidade && $('uBloco').value !== j.sessao_unidade.split('-')[0]) {
+    const [b, a] = j.sessao_unidade.split('-');
+    $('uBloco').value = b; $('uApto').value = a;
+  }
+  if (j.sessao_unidade) {
+    $('uBloco').disabled = $('uApto').disabled = true;
+    document.querySelector('.unit-hint').textContent =
+      `Votando como ${j.sessao_unidade} — unidade da sua sessão`;
+  }
+  $('avisoAtraso').innerHTML = emAtraso
+    ? '<div class="ep-note-warn mb-4">⚠ <span>Unidade em atraso — a votação fica suspensa até a regularização com a administração.</span></div>'
+    : '';
+  render();
+}
+
+function render() {
+  $('lista').innerHTML = props.length ? props.map(p => {
+    const tot = p.favor + p.contra;
+    const pf = tot ? p.favor * 100 / tot : 0;
+    const btns = !p.aberta ? '' : emAtraso
+      ? '<div class="mt-3 text-center text-[11.5px] text-slate-400">Votação suspensa para esta unidade.</div>'
+      : `<div class="mt-3.5 flex gap-2.5">
+      <button class="ep-btn-favor flex-1 ${p.meu_voto === 'favor' ? 'ep-vb-mine' : ''}" data-v="favor" data-p="${p.id}">👍 A favor</button>
+      <button class="ep-btn-contra flex-1 ${p.meu_voto === 'contra' ? 'ep-vb-mine' : ''}" data-v="contra" data-p="${p.id}">👎 Contra</button>
+     </div>
+     ${p.meu_voto ? `<div class="mt-2.5 text-center text-[11.5px] text-slate-400">Seu voto atual: <b class="text-brand-300">${p.meu_voto === 'favor' ? 'a favor' : 'contra'}</b> — vote de novo para mudar</div>` : ''}`;
+    return `<article class="ep-card mb-3.5">
+     <div class="mb-2.5 flex items-center justify-between gap-2.5">
+      <span class="${p.aberta ? 'ep-badge-open' : 'ep-badge-closed'}">${p.aberta ? 'Votação aberta' : 'Encerrada'}</span>
+      <time class="text-[10.5px] text-slate-500">${esc(p.criado)}</time></div>
+     <h3 class="ep-title mb-1.5 text-[17px]">${esc(p.titulo)}</h3>
+     ${p.descricao ? `<p class="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-400 [overflow-wrap:anywhere]">${esc(p.descricao)}</p>` : ''}
+     <div class="ep-vbar"><div class="f" style="width:${pf}%"></div><div class="c" style="width:${100 - pf}%"></div></div>
+     <div class="flex justify-between text-[11.5px] text-slate-400">
+      <span class="font-bold text-emerald-400">${p.favor} a favor</span>
+      <span>${tot} ${tot === 1 ? 'voto' : 'votos'}</span>
+      <span class="font-bold text-rose-400">${p.contra} contra</span></div>
+     ${btns}
+    </article>`;
+  }).join('') : '<div class="ep-empty p-11">Nenhuma proposta publicada ainda.</div>';
+}
+
+$('lista').addEventListener('click', async e => {
+  const b = e.target.closest('[data-v]');
+  if (!b) return;
+  if (!unidade()) { toast('Selecione bloco e apartamento para votar.', true); $('uBloco').focus(); return; }
+  const fd = new FormData();
+  fd.append('unidade', unidade()); fd.append('voto', b.dataset.v);
+  try {
+    const r = await fetch(`/proposta/${b.dataset.p}/voto`, { method: 'POST', body: fd });
+    const j = await r.json();
+    toast(j.msg || 'Erro ao votar.', !r.ok || !j.ok);
+    if (r.ok && j.ok) await carregar();
+  } catch { toast('Falha de conexão.', true); }
+});
+
+const _sv = (localStorage.getItem('prop_unidade') || '').match(/^([A-B]\d)-(\d\d)$/);
+if (_sv) { $('uBloco').value = _sv[1]; $('uApto').value = _sv[2]; }
+['uBloco', 'uApto'].forEach(id => $(id).addEventListener('change', () => {
+  localStorage.setItem('prop_unidade', unidade());
+  carregar().catch(() => {});
+}));
+carregar().catch(e => toast(e.message, true));
+</script>
+{% endblock %}

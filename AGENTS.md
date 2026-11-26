@@ -1,16 +1,39 @@
 # Dashboard do Balancete — Condomínio Elit's Park
 
-Dashboards em HTML puro (sem dependências de build) alimentados por um
-banco SQLite populado a partir dos balancetes em PDF (formato
-Condomínio21 / Brancalion).
+Dashboards + app Flask alimentados por um banco SQLite populado a partir
+dos balancetes em PDF (formato Condomínio21 / Brancalion). A UI usa um
+design system próprio sobre **Tailwind CSS 3 + Preline**, compilado em
+build (não é mais CSS escrito à mão).
 
 ## Arquivos
 
 - `index.html` — dashboard do mês. Aceita `?mes=AAAA-MM` (padrão: mais recente)
 - `historico.html` — histórico: evolução da água, receitas×despesas,
-  composição das despesas, inadimplência e insights automáticos
-- `theme.css` — tokens e estilos compartilhados (paleta, tipografia,
-  navegação, foco) entre páginas estáticas e telas Flask
+  composição das despesas, inadimplência e insights automáticos.
+  As duas páginas são 100% estáticas (Pages/`file://`) e consomem o CSS
+  compilado + `dados.js` — sem Jinja nem toolchain no runtime.
+- `templates/` — templates Jinja das telas Flask (`base.html` + nav
+  `_nav.html` + login/ocorrencia/perfil/propostas/trocar/erro403/admin).
+  Todo HTML de rota vive aqui — `app.py` só tem lógica/rotas e chama
+  `render_template`. NUNCA volte a embutir HTML em strings Python: a
+  classe de bugs `\n`/`\d` double-escape (que já quebrou o admin duas
+  vezes) só existe em strings `"""` — em Jinja o JS é literal.
+- `src/input.css` — fonte do design system: tokens Tailwind + classes
+  de componente `ep-*` via `@apply` (ep-card, ep-btn, ep-input,
+  ep-navlink, ep-apt do desenho predial, ep-hero, ep-seg, ep-barfill,
+  tooltip, etc.). Edite AQUI, não no CSS compilado.
+- `tailwind.config.js` — content scan em `templates/*.html` +
+  `*.html` raiz + `static/js/*.js`; paleta `ink`/`brand`, fontes
+  Inter/Space Grotesk, plugin `preline`.
+- `static/css/theme.css` — CSS compilado e minificado, **commitado**
+  (o Pages consome direto; não tem build no CI). Rota `/theme.css` no
+  Flask serve este arquivo por compatibilidade.
+- `static/vendor/preline.js` — runtime JS do Preline vendorado (tabs,
+  overlays — usado via atributos `data-hs-*` nas templates).
+- `static/js/app.js` — helpers compartilhados (`$`, `esc`, `toast`).
+- `package.json` / `package-lock.json` — toolchain de build: `tailwindcss@3`,
+  `preline`. `node_modules/` é gitignored.
+- `dados.js` — gerado pelo `extrair.py` (`window.DADOS = {unidades, meses: {...}}`)
 - `dados.js` — gerado pelo `extrair.py` (`window.DADOS = {unidades, meses: {...}}`)
 - `extrair.py` — parseia o PDF, grava o mês no banco, arquiva em `pdfs/`,
   regenera `dados.js`
@@ -68,11 +91,31 @@ Condomínio21 / Brancalion).
   O banco usa WAL + `busy_timeout` (concorrência entre workers
   gunicorn); `odb()` garante o schema só na 1ª chamada do processo —
   não escrever em paths de leitura, senão "database is locked".
-- `Dockerfile` / `entrypoint.sh` / `docker-compose.yml` — imagem
-  python+poppler+gunicorn; volume `/data`; PDFs de `pdfs/` semeiam o banco.
+- `Dockerfile` / `entrypoint.sh` / `docker-compose.yml` — build
+  multi-stage: estágio `node:20-alpine` roda `npm ci` + compila
+  `theme.css` + vendora `preline.js`; imagem final é só
+  python+poppler+gunicorn (zero Node em produção); volume `/data`;
+  PDFs de `pdfs/` semeiam o banco. `.dockerignore` exclui
+  `node_modules/` e `data/`.
 - `data/` — artefatos de runtime do container (gitignored).
 - `.github/workflows/atualizar.yml` — CI: push em `pdfs/` → extrai → commita
 - `AGENTS.md` — este arquivo
+
+## Build do frontend
+
+O `theme.css` é artefato commitado. Recompile SEMPRE que mexer em
+`src/input.css`, `tailwind.config.js` ou adicionar classes novas em
+templates/HTMLs (o scanner pega classes em atributos e em strings JS):
+
+```bash
+npm ci                                        # 1ª vez (ou npm install)
+npx tailwindcss -i src/input.css -o static/css/theme.css --minify
+docker compose up -d --build                  # rebuilda a imagem
+```
+
+O estágio Node do Dockerfile repete exatamente esse passo — então
+`docker compose build` basta para produção; o comando acima serve para
+iterar local sem rebuildar a imagem.
 
 ## Atualização mensal
 
@@ -94,8 +137,15 @@ commita `dados.js`/`balancetes.db` e o Pages republica
 
 ```bash
 node --check dados.js
+python3 -m py_compile app.py
 python3 -m http.server 8765   # pré-visualização local
 ```
+
+Para checar JS de páginas servidas: baixe a página com cookie de sessão,
+extraia os `<script>` inline e rode `node --check` — valide o HTML
+**servido**, não o fonte do template. NÃO passe por `html.unescape`:
+entidades `&#39;` dentro de `<script>` são literais corretos (o browser
+não decodifica entidades ali) — unescape corrompe o check.
 
 O `extrair.py` imprime `⚠` para cada campo não encontrado — nesse caso
 o layout do PDF provavelmente mudou e o parser precisa de ajuste.

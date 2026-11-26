@@ -91,6 +91,7 @@
   <span class="on">Histórico</span>
   <a href="/ocorrencia" id="navOcorr" style="display:none">Ocorrência</a>
   <a href="/propostas" id="navProp" style="display:none">Votações</a>
+  <a href="/perfil" id="navPerfil" style="display:none">Perfil</a>
   <a href="/admin" id="navAdmin" style="display:none">Admin</a>
   <a href="#" title="Sair" onclick="if(document.cookie.indexOf('cond_app=1')>=0){location.href='/logout'}else{localStorage.removeItem('cond_acesso_v1');location.reload()};return false">🔒</a>
 </nav>
@@ -157,7 +158,7 @@
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const pct1 = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 const $ = id => document.getElementById(id);
-if (document.cookie.indexOf('cond_app=1') >= 0) { $('navOcorr').style.display = ''; $('navProp').style.display = ''; }
+if (document.cookie.indexOf('cond_app=1') >= 0) { $('navOcorr').style.display = ''; $('navProp').style.display = ''; $('navPerfil').style.display = ''; }
 if (document.cookie.indexOf('cond_role=admin') >= 0) $('navAdmin').style.display = '';
 const DB = window.DADOS, UNID = DB.unidades;
 const keys = Object.keys(DB.meses).sort();

@@ -41,6 +41,14 @@ Condomínio21 / Brancalion).
   devolve `mapa` só com unidades flaggeadas. Ocorrência e voto usam
   selects bloco+apto — unidade sempre válida (`APTOS`/`BLOCOS` no
   app.py); "área comum" grava unidade NULL.
+  Perfil/advertências: tabela `advertencias` (unidade+texto) — visíveis
+  SÓ em `/perfil`, acessado com unidade+código de 4 dígitos que o admin
+  gera no painel (`POST /admin/unidade/<id>/codigo` — retorna uma vez,
+  banco guarda sha256; gerar novo invalida). `session['unidade']`
+  vincula a sessão ao perfil. Badge vermelho `!` no mapa = unidade
+  advertida. Rotas: `POST /perfil/acesso`, `GET /perfil/sair`,
+  `POST /admin/unidade/<id>/advertencia`,
+  `POST /admin/advertencia/<id>/remover`.
   O banco usa WAL + `busy_timeout` (concorrência entre workers
   gunicorn); `odb()` garante o schema só na 1ª chamada do processo —
   não escrever em paths de leitura, senão "database is locked".

@@ -214,6 +214,7 @@
   <a href="historico.html">Histórico →</a>
   <a href="/ocorrencia" id="navOcorr" style="display:none">Ocorrência</a>
   <a href="/propostas" id="navProp" style="display:none">Votações</a>
+  <a href="/perfil" id="navPerfil" style="display:none">Perfil</a>
   <a href="/admin" id="navAdmin" style="display:none">Admin</a>
   <select id="mesSel"></select>
   <a href="#" title="Sair" onclick="if(document.cookie.indexOf('cond_app=1')>=0){location.href='/logout'}else{localStorage.removeItem('cond_acesso_v1');location.reload()};return false">🔒</a>
@@ -346,7 +347,7 @@ const state = { taxa: 0, fundo: 0, boleto: 0, agua: 0, outras: 0 };
     sel.appendChild(o);
   });
   sel.addEventListener('change', () => { location.href = 'index.html?mes=' + sel.value; });
-  if (document.cookie.indexOf('cond_app=1') >= 0) { $('navOcorr').style.display = ''; $('navProp').style.display = ''; }
+  if (document.cookie.indexOf('cond_app=1') >= 0) { $('navOcorr').style.display = ''; $('navProp').style.display = ''; $('navPerfil').style.display = ''; }
   if (document.cookie.indexOf('cond_role=admin') >= 0) $('navAdmin').style.display = '';
   $('eyebrow').textContent = 'Balancete · ' + dados.mesLabel;
   $('condNome').textContent = dados.condominio.replace(/^Condominio\s*/i, '');

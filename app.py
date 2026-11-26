@@ -10,6 +10,7 @@ Variáveis de ambiente obrigatórias:
 Dev:   python3 app.py
 Prod:  gunicorn -b 0.0.0.0:8000 -w 2 app:app
 """
+import hashlib
 import hmac
 import os
 import secrets
@@ -19,6 +20,7 @@ from pathlib import Path
 
 from flask import (Flask, redirect, render_template_string, request,
                    send_from_directory, session)
+from markupsafe import escape
 
 import extrair
 
@@ -316,6 +318,31 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
  .up-ocs-t{font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:7px;color:#a5b2c6}
  .up-oc{padding:7px 0;border-bottom:1px solid rgba(148,163,184,.08);font-size:12px;color:#dce5f2}
  .up-oc:last-child{border-bottom:0}
+ .up-sec{margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,.09)}
+ .advb{position:absolute;top:-5px;left:-5px;width:14px;height:14px;border-radius:50%;
+  background:#e11d48;color:#fff;font-size:9px;font-weight:800;display:grid;place-items:center;
+  font-style:normal;font-family:inherit}
+ .adv-form{display:flex;gap:8px;margin-bottom:9px}
+ .adv-form input{flex:1;padding:9px 11px;border-radius:9px;border:1px solid var(--border);
+  background:rgba(4,10,20,.55);color:var(--text);font-family:inherit;font-size:12px;outline:none}
+ .adv-form input:focus{border-color:var(--amber)}
+ .adv-form button{padding:9px 13px;border:none;border-radius:9px;font-weight:700;font-size:11.5px;
+  cursor:pointer;color:#231a05;background:var(--amber);white-space:nowrap;transition:.15s}
+ .adv-form button:hover{filter:brightness(1.1)}
+ .adv-item{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
+  padding:8px 0;border-bottom:1px solid rgba(148,163,184,.07);font-size:12px}
+ .adv-item:last-child{border-bottom:0}
+ .adv-item .adv-t{color:#f0e6d8;line-height:1.45;overflow-wrap:anywhere}
+ .adv-side{display:flex;align-items:center;gap:7px;flex-shrink:0}
+ .adv-side time{color:#718098;font-size:10px;white-space:nowrap}
+ .adv-x{background:none;border:none;color:#718098;font-size:15px;cursor:pointer;padding:0 3px;line-height:1}
+ .adv-x:hover{color:#ff9eaa}
+ .cod-row{display:flex;align-items:center;gap:10px}
+ .cod-st{font-size:11.5px;color:var(--muted)}
+ .cod-st.on{color:#8be2c5}
+ .code-out{margin-top:9px;padding:10px 12px;border-radius:10px;font-size:12.5px;
+  background:rgba(85,213,208,.07);border:1px dashed rgba(85,213,208,.4);color:#b7c3d5}
+ .code-out b{font-family:'Space Grotesk';font-size:16px;letter-spacing:2px;color:var(--cyan)}
  .b-tot{color:#66758b;font-size:9.5px;text-align:center;margin-top:8px}
  .empty{color:var(--muted);text-align:center;padding:32px 14px;font-size:13px}
  .section{margin-top:16px}
@@ -363,7 +390,7 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   <div class="links">
    <a class="home" href="/">Painel</a><a href="/historico.html">Histórico</a>
    <a href="/ocorrencia">Nova ocorrência</a><a href="/propostas">Votações</a>
-   <a class="exit" href="/logout">Sair</a>
+   <a href="/perfil">Perfil</a><a class="exit" href="/logout">Sair</a>
   </div>
  </div>
  <section class="intro">
@@ -420,6 +447,7 @@ ADMIN_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
    <span><svg class="lic" viewBox="0 0 24 18" fill="#fb923c" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>Mudança · saída</span>
    <span><svg class="lic2" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>Idoso 75+</span>
    <span><i class="lg docb"></i>Ocorrência aberta</span>
+   <span><i class="advb" style="position:static">!</i>Advertência</span>
   </div>
   <div id="unitPanel"></div>
  </section>
@@ -462,6 +490,8 @@ async function resumo() {
   $('monthN').textContent = `${r.meses.length} meses`;
   renderOccurrences();
   renderProps(r.propostas);
+  allAdvs = r.advertencias;
+  codeSet = new Set(r.codigos);
   lastMapa = r.mapa;
   renderBlocks(r.mapa);
   $('tblBody').innerHTML = r.meses.slice().reverse().map((m, i) => `<tr>
@@ -502,7 +532,7 @@ function renderProps(props) {
   }).join('') : '<div class="empty">Nenhuma proposta publicada ainda.</div>';
 }
 const BLOCOS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3'];
-let lastMapa = {}, selUnit = null;
+let lastMapa = {}, selUnit = null, allAdvs = [], codeSet = new Set(), lastCode = {};
 const FLAG_TXT = { a: 'em atraso', mi: 'mudança (entrada)', mo: 'mudança (saída)', i: 'idoso 75+' };
 const TRUCK = c => `<svg width="12" height="9" viewBox="0 0 24 18" fill="${c}" aria-hidden="true"><path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/><circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>`;
 const CROSS = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><rect width="12" height="12" rx="2.5" fill="#fff"/><path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>';
@@ -519,9 +549,10 @@ function renderBlocks(mapa) {
         const ico = [st.mi && TRUCK('#34d399'), st.mo && TRUCK('#fb923c'), st.i && CROSS]
           .filter(Boolean).join('');
         const tip = [id, ...Object.keys(FLAG_TXT).filter(k => st[k]).map(k => FLAG_TXT[k]),
-          st.oc ? `${st.oc} ocorrência(s) aberta(s)` : ''].filter(Boolean).join(' · ');
+          st.oc ? `${st.oc} ocorrência(s) aberta(s)` : '',
+          st.adv ? `${st.adv} advertência(s)` : ''].filter(Boolean).join(' · ');
         cells += `<button class="apt ${st.a ? 'late' : ''} ${selUnit === id ? 'sel' : ''}"
-          data-apt="${id}" title="${esc(tip)}">${f}${n}${ico ? `<span class="icons">${ico}</span>` : ''}${st.oc ? `<span class="ocb">${st.oc}</span>` : ''}</button>`;
+          data-apt="${id}" title="${esc(tip)}">${f}${n}${ico ? `<span class="icons">${ico}</span>` : ''}${st.oc ? `<span class="ocb">${st.oc}</span>` : ''}${st.adv ? '<i class="advb">!</i>' : ''}</button>`;
       }
     return `<div class="block"><div class="bname">${b}</div>
       <div class="bgrid">${cells}</div>
@@ -534,6 +565,8 @@ function renderUnitPanel() {
   const st = lastMapa[selUnit] || {};
   const [bloco, num] = selUnit.split('-');
   const ocs = allOccurrences.filter(o => !o.resolvida && o.unidade === selUnit);
+  const advs = allAdvs.filter(a => a.unidade === selUnit);
+  const hasCode = codeSet.has(selUnit);
   const flag = (k, label, ic) => `<label class="uflag">
     <input type="checkbox" data-flag="${k}" ${st[k] ? 'checked' : ''}>
     ${ic}${label}</label>`;
@@ -550,6 +583,20 @@ function renderUnitPanel() {
    <div class="up-ocs"><div class="up-ocs-t">Ocorrências abertas</div>
     ${ocs.length ? ocs.map(o => `<div class="up-oc"><span class="oc-cat">${esc(o.categoria || 'Outro')}</span> ${esc(o.texto)}</div>`).join('')
      : 'Nenhuma em aberto.'}</div>
+   <div class="up-sec"><div class="up-ocs-t">Advertências — visíveis só no perfil do morador</div>
+    <div class="adv-form"><input type="text" id="advInp" maxlength="300"
+      placeholder="Descreva a advertência…"><button data-adv>Emitir</button></div>
+    ${advs.length ? advs.map(a => `<div class="adv-item"><span class="adv-t">${esc(a.texto)}</span>
+      <span class="adv-side"><time>${esc(a.criado.slice(0, 10))}</time>
+      <button class="adv-x" data-advdel="${a.id}" title="Remover">×</button></span></div>`).join('')
+     : '<div class="up-ocs">Nenhuma registrada.</div>'}
+   </div>
+   <div class="up-sec"><div class="up-ocs-t">Código de acesso do morador</div>
+    <div class="cod-row"><span class="cod-st ${hasCode ? 'on' : ''}">${hasCode ? '✓ Código ativo' : 'Sem código — o morador não acessa o perfil'}</span>
+     <button class="pbtn" data-cod>${hasCode ? 'Gerar novo código' : 'Gerar código'}</button></div>
+    ${lastCode[selUnit] ? `<div class="code-out">Código: <b>${lastCode[selUnit]}</b><br>
+      <span style="font-size:10.5px">Distribua ao morador — gerar um novo invalida este.</span></div>` : ''}
+   </div>
   </div>`;
 }
 resumo().catch(e => toast(e.message, true));
@@ -562,11 +609,41 @@ $('blocks').addEventListener('click', e => {
   b.classList.add('sel');
   renderUnitPanel();
 });
-$('unitPanel').addEventListener('click', e => {
-  if (!e.target.closest('[data-close]')) return;
-  selUnit = null;
-  $('unitPanel').innerHTML = '';
-  document.querySelectorAll('.apt.sel').forEach(x => x.classList.remove('sel'));
+$('unitPanel').addEventListener('click', async e => {
+  if (e.target.closest('[data-close]')) {
+    selUnit = null;
+    $('unitPanel').innerHTML = '';
+    document.querySelectorAll('.apt.sel').forEach(x => x.classList.remove('sel'));
+    return;
+  }
+  if (!selUnit) return;
+  try {
+    if (e.target.closest('[data-adv]')) {
+      const inp = $('advInp'), texto = inp.value.trim();
+      if (!texto) { toast('Descreva a advertência.', true); inp.focus(); return; }
+      const fd = new FormData(); fd.append('texto', texto);
+      const r = await fetch(`/admin/unidade/${selUnit}/advertencia`, { method: 'POST', body: fd });
+      const j = await r.json();
+      toast(j.msg || 'Erro.', !r.ok || !j.ok);
+      if (r.ok && j.ok) await resumo();
+      return;
+    }
+    const del = e.target.closest('[data-advdel]');
+    if (del) {
+      const r = await fetch(`/admin/advertencia/${del.dataset.advdel}/remover`, { method: 'POST' });
+      if (!r.ok) throw new Error();
+      await resumo();
+      return;
+    }
+    if (e.target.closest('[data-cod]')) {
+      const r = await fetch(`/admin/unidade/${selUnit}/codigo`, { method: 'POST' });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.msg || 'Erro ao gerar.');
+      lastCode[selUnit] = j.codigo;
+      toast(`Código da unidade ${selUnit}: ${j.codigo}`);
+      await resumo();
+    }
+  } catch (err) { toast(err.message || 'Falha ao atualizar a unidade.', true); }
 });
 $('unitPanel').addEventListener('change', async e => {
   const cb = e.target.closest('[data-flag]');
@@ -668,6 +745,12 @@ def api_resumo():
         'propostas': [{'id': i, 'criado': c, 'titulo': t, 'descricao': d,
                        'aberta': bool(ab), 'favor': f, 'contra': co}
                       for i, c, t, d, ab, f, co in props],
+        'advertencias': [{'id': i, 'criado': c, 'unidade': u, 'texto': t}
+                         for i, c, u, t in odb().execute(
+            'SELECT id, criado_em, unidade, texto FROM advertencias '
+            'ORDER BY id DESC LIMIT 200').fetchall()],
+        'codigos': [u for u, in odb().execute(
+            'SELECT unidade FROM unidades WHERE codigo IS NOT NULL')],
         'mapa': mapa_unidades(odb())}
 
 
@@ -677,13 +760,15 @@ def mapa_unidades(conn):
     oc_ab = {u: n for u, n in conn.execute(
         'SELECT unidade, COUNT(*) FROM ocorrencias '
         'WHERE resolvida = 0 AND unidade IS NOT NULL GROUP BY unidade')}
+    adv_ab = {u: n for u, n in conn.execute(
+        'SELECT unidade, COUNT(*) FROM advertencias GROUP BY unidade')}
     mapa = {}
     for u, a, mi, mo, i in conn.execute(
             'SELECT unidade, em_atraso, mud_in, mud_out, idoso75 FROM unidades'):
         oc = oc_ab.get(u, 0)
-        if a or mi or mo or i or oc:
+        if a or mi or mo or i or oc or u in adv_ab:
             mapa[u] = {'a': bool(a), 'mi': bool(mi), 'mo': bool(mo),
-                       'i': bool(i), 'oc': oc}
+                       'i': bool(i), 'oc': oc, 'adv': adv_ab.get(u, 0)}
     return mapa
 
 
@@ -759,15 +844,21 @@ def odb():
     conn.execute("""CREATE TABLE IF NOT EXISTS unidades(
         unidade TEXT PRIMARY KEY, em_atraso INTEGER DEFAULT 0,
         mud_in INTEGER DEFAULT 0, mud_out INTEGER DEFAULT 0,
-        idoso75 INTEGER DEFAULT 0)""")
+        idoso75 INTEGER DEFAULT 0, codigo TEXT)""")
     cols = {r[1] for r in conn.execute('PRAGMA table_info(unidades)')}
     for col in ('mud_in', 'mud_out', 'idoso75'):
         if col not in cols:
             conn.execute(f'ALTER TABLE unidades ADD COLUMN {col} INTEGER DEFAULT 0')
+    if 'codigo' not in cols:
+        conn.execute('ALTER TABLE unidades ADD COLUMN codigo TEXT')
     conn.executemany(
         'INSERT OR IGNORE INTO unidades(unidade) VALUES (?)',
         [(f'{b}-{f}{n}',) for b in BLOCOS
          for f in range(1, 7) for n in range(1, 5)])
+    conn.execute("""CREATE TABLE IF NOT EXISTS advertencias(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        criado_em TEXT DEFAULT (datetime('now','localtime')),
+        unidade TEXT NOT NULL, texto TEXT NOT NULL)""")
     conn.commit()
     _db_ready = True
     return conn
@@ -871,6 +962,45 @@ def flag_unidade(uid):
     return {'ok': True}
 
 
+@app.post('/admin/unidade/<uid>/advertencia')
+@need_admin
+def nova_advertencia(uid):
+    texto = request.form.get('texto', '').strip()
+    if not texto:
+        return {'ok': False, 'msg': 'Descreva a advertência.'}, 400
+    conn = odb()
+    conn.execute('INSERT INTO advertencias(unidade, texto) VALUES (?,?)',
+                 (uid.upper(), texto))
+    conn.commit()
+    return {'ok': True, 'msg': f'Advertência registrada para {uid.upper()}'}
+
+
+@app.post('/admin/advertencia/<int:aid>/remover')
+@need_admin
+def remover_advertencia(aid):
+    conn = odb()
+    conn.execute('DELETE FROM advertencias WHERE id = ?', (aid,))
+    conn.commit()
+    return {'ok': True}
+
+
+@app.post('/admin/unidade/<uid>/codigo')
+@need_admin
+def gerar_codigo(uid):
+    """Gera código de acesso da unidade (4 dígitos); devolve uma vez —
+    no banco fica só o hash. Trocar o código invalida o anterior."""
+    uid = uid.upper()
+    conn = odb()
+    if not conn.execute('SELECT 1 FROM unidades WHERE unidade = ?',
+                        (uid,)).fetchone():
+        return {'ok': False, 'msg': 'Unidade desconhecida.'}, 404
+    codigo = f'{secrets.randbelow(9000) + 1000}'
+    conn.execute('UPDATE unidades SET codigo = ? WHERE unidade = ?',
+                 (hashlib.sha256(codigo.encode()).hexdigest(), uid))
+    conn.commit()
+    return {'ok': True, 'codigo': codigo}
+
+
 # ---------------- propostas & votação ----------------
 
 PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
@@ -965,7 +1095,8 @@ PROPOSTAS_HTML = """<!DOCTYPE html><html lang="pt-BR"><head>
   </div>
   <div class="links">
    <a href="/">Painel</a><a href="/historico.html">Histórico</a>
-   <a href="/ocorrencia">Ocorrência</a><a class="exit" href="/logout">Sair</a>
+   <a href="/ocorrencia">Ocorrência</a><a href="/perfil">Perfil</a>
+   <a class="exit" href="/logout">Sair</a>
   </div>
  </div>
  <section class="intro">
@@ -1139,6 +1270,196 @@ def alternar_proposta(pid):
     conn.execute('UPDATE propostas SET aberta = 1 - aberta WHERE id = ?', (pid,))
     conn.commit()
     return {'ok': True}
+
+
+# ---------------- perfil da unidade (advertências) ----------------
+
+TRUCK_P = lambda c: (f'<svg width="16" height="12" viewBox="0 0 24 18" fill="{c}" aria-hidden="true">'
+                     '<path d="M0 2h13v9H0z"/><path d="M14 5h4.2L22 9v4h-8z"/>'
+                     '<circle cx="5.5" cy="14.5" r="2.7"/><circle cx="18.5" cy="14.5" r="2.7"/></svg>')
+CROSS_P = ('<svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true">'
+           '<rect width="12" height="12" rx="2.5" fill="#fff"/>'
+           '<path d="M5 2h2v3h3v2H8v3H6V7H3V5h3z" fill="#e11d48"/></svg>')
+
+PERFIL_HEAD = """<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Minha unidade · Elit's Park</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+ :root{--border:rgba(148,163,184,.13);--muted:#91a0b8;--text:#edf3fc;
+  --cyan:#55d5d0;--amber:#f4bd6a}
+ *{margin:0;padding:0;box-sizing:border-box}
+ body{min-height:100vh;padding:34px 24px 70px;color:var(--text);font-family:'Inter',sans-serif;
+  background:radial-gradient(900px 500px at 8% -8%,rgba(85,213,208,.13),transparent 63%),
+   radial-gradient(700px 430px at 100% 5%,rgba(118,169,255,.10),transparent 65%),
+   linear-gradient(145deg,#080d19,#0a1020 58%,#080d19)}
+ .wrap{max-width:760px;margin:0 auto}
+ .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:26px}
+ .brand{display:flex;align-items:center;gap:14px}
+ .mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;
+  color:#07131a;background:linear-gradient(145deg,#83e5d4,#50c6c6);font-weight:700;
+  box-shadow:0 8px 28px rgba(85,213,208,.18)}
+ .eyebrow{color:var(--cyan);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700}
+ h1{font-family:'Space Grotesk',sans-serif;font-size:25px;letter-spacing:-.5px}
+ .links{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid var(--border);
+  border-radius:13px;background:rgba(12,20,36,.75)}
+ .links a{font-size:12.5px;font-weight:600;color:var(--muted);padding:9px 12px;
+  border-radius:9px;text-decoration:none;transition:.18s;white-space:nowrap}
+ .links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+ .links a.exit{color:#ff9eaa}
+ .intro{margin:28px 0 20px}
+ .intro h2{font-family:'Space Grotesk';font-size:clamp(24px,3vw,32px);letter-spacing:-1px}
+ .mut2{color:var(--muted);font-size:13.5px;margin-top:6px}
+ a.link2{color:var(--cyan)}
+ .sect{margin-bottom:26px}
+ .sect h3{font-family:'Space Grotesk';font-size:16px;margin-bottom:11px}
+ .adv{display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(244,189,106,.45);
+  background:rgba(244,189,106,.07);border-radius:14px;padding:14px 15px;margin-bottom:9px}
+ .adv-ic{color:var(--amber);font-size:16px;line-height:1.2}
+ .adv time{color:#c9995f;font-size:10.5px;display:block;margin-bottom:4px}
+ .adv p{font-size:13.5px;line-height:1.55;color:#f0e6d8;overflow-wrap:anywhere}
+ .st{display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid var(--border);
+  border-radius:12px;margin-bottom:8px;background:rgba(4,10,20,.35)}
+ .st svg{flex-shrink:0}
+ .st b{font-size:13px;display:block}
+ .st span{font-size:11.5px;color:var(--muted)}
+ .lg{width:10px;height:10px;border-radius:3px;display:inline-block;flex-shrink:0}
+ .lg.late{background:rgba(251,113,133,.7)}
+ .oc-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;
+  padding:11px 2px;border-bottom:1px solid rgba(148,163,184,.08);font-size:12.5px}
+ .oc-row:last-child{border-bottom:0}
+ .oc-row .t{color:#dce5f2;line-height:1.5;overflow-wrap:anywhere}
+ .oc-cat{color:#a6c9ff;background:rgba(118,169,255,.1);padding:3px 7px;border-radius:6px;
+  font-size:10px;font-weight:700;margin-right:6px;white-space:nowrap}
+ .oc-side{display:flex;align-items:center;gap:8px;flex-shrink:0}
+ .oc-side time{color:#718098;font-size:10.5px;white-space:nowrap}
+ .tag{font-size:9.5px;font-weight:700;padding:3px 8px;border-radius:6px;
+  text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+ .tag.ok{color:#8be2c5;background:rgba(52,211,153,.12)}
+ .tag.op{color:#f4bd6a;background:rgba(244,189,106,.12)}
+ .empty{color:var(--muted);padding:22px 14px;font-size:13px;text-align:center;
+  border:1px dashed var(--border);border-radius:12px}
+ @media(max-width:650px){
+  body{padding:15px 13px 48px}.topbar{align-items:flex-start;flex-direction:column;gap:13px}
+  .links{width:100%;overflow-x:auto}.links a{flex:1;text-align:center;padding:8px 7px;font-size:11px}
+  .mark{width:40px;height:40px}
+ }
+</style><link rel="stylesheet" href="/theme.css"></head><body>
+<div class="wrap">
+ <div class="topbar">
+  <div class="brand"><div class="mark" aria-hidden="true">EP</div>
+   <div><div class="eyebrow">Condomínio Elit's Park</div><h1>Minha unidade</h1></div>
+  </div>
+  <div class="links">
+   <a href="/">Painel</a><a href="/historico.html">Histórico</a>
+   <a href="/ocorrencia">Ocorrência</a><a href="/propostas">Votações</a>
+   <a class="exit" href="/logout">Sair</a>
+  </div>
+ </div>
+"""
+
+
+@app.route('/perfil')
+@need_login
+def perfil():
+    """Perfil da unidade: exige unidade + código (admin gera por unidade).
+    Advertências da administração só aparecem aqui."""
+    uid = session.get('unidade')
+    if not uid:
+        blocos = ''.join(f'<option>{b}</option>' for b in BLOCOS)
+        aptos = ''.join(f'<option>{a}</option>' for a in sorted(APTOS))
+        msgs = {'unidade': 'Selecione bloco e apartamento.',
+                'semcodigo': 'Esta unidade ainda não tem código — peça à administração.',
+                'codigo': 'Código incorreto — tente novamente.'}
+        erro = msgs.get(request.args.get('erro'), '')
+        return render_template_string(
+            PAGE, titulo='Minha unidade',
+            body=f'<div class="card"><div class="eyebrow">Perfil do morador</div>'
+                 f'<h1>Minha unidade</h1>'
+                 f'<p class="mut">Identifique-se com sua unidade e o código '
+                 f'fornecido pela administração.</p>'
+                 f'{f"<p class=bad>⚠ {escape(erro)}</p>" if erro else ""}'
+                 f'<form method="post" action="/perfil/acesso">'
+                 f'<label>Unidade</label><div class="ugrid">'
+                 f'<select name="bloco" required><option value="">Bloco…</option>{blocos}</select>'
+                 f'<select name="apto" required><option value="">Apto…</option>{aptos}</select></div>'
+                 f'<label>Código de acesso</label>'
+                 f'<input type="password" name="codigo" inputmode="numeric" '
+                 f'maxlength="4" placeholder="4 dígitos" required>'
+                 f'<button type="submit">Entrar no perfil</button></form>'
+                 f'<div class="links"><a href="/">← Dashboard</a>'
+                 f'<a href="/propostas">Votações</a><a href="/logout">Sair</a></div></div>')
+    conn = odb()
+    fl = conn.execute(
+        'SELECT em_atraso, mud_in, mud_out, idoso75 FROM unidades WHERE unidade = ?',
+        (uid,)).fetchone()
+    advs = conn.execute(
+        'SELECT criado_em, texto FROM advertencias WHERE unidade = ? ORDER BY id DESC',
+        (uid,)).fetchall()
+    ocs = conn.execute(
+        'SELECT criado_em, categoria, texto, resolvida FROM ocorrencias '
+        'WHERE unidade = ? ORDER BY id DESC LIMIT 20', (uid,)).fetchall()
+    bloco, num = uid.split('-')
+    adv_html = ''.join(
+        f'<div class="adv"><span class="adv-ic">⚠</span>'
+        f'<div><time>{escape(c)}</time><p>{escape(t)}</p></div></div>'
+        for c, t in advs) or '<div class="empty">Nenhuma advertência — tudo certo por aqui.</div>'
+    sts = []
+    if fl and fl[0]:
+        sts.append('<div class="st"><i class="lg late"></i><div><b>Em atraso</b>'
+                   '<span>Regularize com a administração para recuperar o voto nas propostas.</span></div></div>')
+    if fl and fl[1]:
+        sts.append(f'<div class="st">{TRUCK_P("#34d399")}<div><b>Mudança · entrada</b>'
+                   '<span>Registrada pela administração.</span></div></div>')
+    if fl and fl[2]:
+        sts.append(f'<div class="st">{TRUCK_P("#fb923c")}<div><b>Mudança · saída</b>'
+                   '<span>Registrada pela administração.</span></div></div>')
+    if fl and fl[3]:
+        sts.append(f'<div class="st">{CROSS_P}<div><b>Morador 75+</b>'
+                   '<span>Cadastro de morador idoso ativo.</span></div></div>')
+    st_html = ''.join(sts) or '<div class="empty">Unidade em dia — nenhuma marcação.</div>'
+    ocs_html = ''.join(
+        f'<div class="oc-row"><div><span class="oc-cat">{escape(cat or "Outro")}</span>'
+        f'<span class="t">{escape(t)}</span></div>'
+        f'<div class="oc-side"><time>{escape(c[:10])}</time>'
+        f'<span class="tag {"ok" if r else "op"}">{"resolvida" if r else "aberta"}</span></div></div>'
+        for c, cat, t, r in ocs) or '<div class="empty">Você ainda não registrou ocorrências.</div>'
+    return PERFIL_HEAD + f"""
+ <section class="intro"><h2>{escape(uid)}</h2>
+  <p class="mut2">Bloco {escape(bloco)} · {escape(num[0])}º andar · Apto {escape(num)}
+   · <a class="link2" href="/perfil/sair">trocar unidade</a></p></section>
+ <div class="sect"><h3>Advertências da administração</h3>{adv_html}</div>
+ <div class="sect"><h3>Situação da unidade</h3>{st_html}</div>
+ <div class="sect"><h3>Suas ocorrências registradas</h3>{ocs_html}</div>
+</div></body></html>"""
+
+
+@app.post('/perfil/acesso')
+@need_login
+def perfil_acesso():
+    bloco = request.form.get('bloco', '').upper()
+    apto = request.form.get('apto', '')
+    uid = f'{bloco}-{apto}'
+    if bloco not in BLOCOS or apto not in APTOS:
+        return redirect('/perfil?erro=unidade')
+    row = odb().execute('SELECT codigo FROM unidades WHERE unidade = ?',
+                        (uid,)).fetchone()
+    if not row or not row[0]:
+        return redirect('/perfil?erro=semcodigo')
+    codigo = request.form.get('codigo', '').strip()
+    if not hmac.compare_digest(row[0], hashlib.sha256(codigo.encode()).hexdigest()):
+        return redirect('/perfil?erro=codigo')
+    session['unidade'] = uid
+    return redirect('/perfil')
+
+
+@app.get('/perfil/sair')
+@need_login
+def perfil_sair():
+    session.pop('unidade', None)
+    return redirect('/perfil')
 
 
 @app.get('/dados.js')

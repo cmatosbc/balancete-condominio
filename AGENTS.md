@@ -132,6 +132,14 @@ build (não é mais CSS escrito à mão).
   whatsapp up -d` sobe Evolution API (`evolution`, porta 8081) +
   `evopg` (sessões) + `evoredis`; chaves em `.env` (gitignored):
   `EVO_KEY` (apikey + login do `/manager`), `EVO_DB_PASS`.
+- `Caddyfile` + serviço `caddy` (profile `web`) — proxy reverso na
+  frente do site. `DOMAIN` no `.env`: vazio/`:80` = HTTP local;
+  `dominio.com` = HTTPS automático via Let's Encrypt (certificados no
+  volume `caddy_data`). O site fica bind `127.0.0.1:8080` — em
+  produção o público sai só pelo Caddy. Portas parametrizáveis por
+  `HTTP_PORT`/`HTTPS_PORT` (defaults 80/443 — em dev com :80 ocupada,
+  ex.: `HTTP_PORT=8088`). Ajustar `PUBLIC_URL` para `https://$DOMAIN`.
+  Produção: `docker compose --profile whatsapp --profile web up -d`.
 - `data/` — artefatos de runtime do container (gitignored).
 - `.github/workflows/atualizar.yml` — CI: push em `pdfs/` → extrai → commita
 - `AGENTS.md` — este arquivo
@@ -167,14 +175,17 @@ sudo usermod -aG docker $USER && newgrp docker
 git clone https://github.com/cmatosbc/balancete-condominio ~/condominio
 cd ~/condominio && cp .env.example .env 2>/dev/null; nano .env   # segredos
 # opcional: copiar data/balancetes.db para preservar senhas/contatos/votos
-docker compose --profile whatsapp up -d --build
+docker compose --profile whatsapp --profile web up -d --build
 ```
 
 Liberação de rede na Oracle (Security List da VCN + firewall da VM):
-80/443 (HTTP/HTTPS via Caddy ou o próprio site). A porta 8081 da
-Evolution fica bind em 127.0.0.1 — manager só via SSH tunnel
-(`ssh -L 8081:localhost:8081 user@vm`). WhatsApp webhook é interno
-(`http://site:8000/…`), não precisa de exposição.
+80/443 — o Caddy (serviço do compose, `Caddyfile` no repo) serve o
+site com HTTPS automático; defina `DOMAIN` e `PUBLIC_URL` no `.env`.
+O DNS (A record → IP da VM) se configura no registrador — único passo
+fora do repo. A porta 8081 da Evolution fica bind em 127.0.0.1 —
+manager só via SSH tunnel (`ssh -L 8081:localhost:8081 user@vm`).
+WhatsApp webhook é interno (`http://site:8000/…`), não precisa de
+exposição.
 
 Atenção ARM64: todas as imagens usadas são multi-arch
 (evolution-api, postgres, redis, python, node) — compose roda

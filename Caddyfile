@@ -1,0 +1,13 @@
+# Proxy reverso na frente do site Flask.
+# DOMAIN=:80 → HTTP simples (dev local, http://localhost)
+# DOMAIN=condominio.exemplo.com → HTTPS automático (Let's Encrypt) + redirect 80→443
+{$DOMAIN::80}
+
+reverse_proxy site:8000
+
+# headers de boa prática
+header {
+	X-Content-Type-Options nosniff
+	Referrer-Policy strict-origin-when-cross-origin
+	-Server
+}

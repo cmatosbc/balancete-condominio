@@ -394,6 +394,10 @@ def odb():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         criado_em TEXT DEFAULT (datetime('now','localtime')),
         unidade TEXT NOT NULL, texto TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS wa_sessoes(
+        jid TEXT PRIMARY KEY,
+        etapa TEXT DEFAULT 'menu',
+        aberta_em TEXT DEFAULT (datetime('now','localtime')))""")
     conn.commit()
     _db_ready = True
     return conn
@@ -630,12 +634,19 @@ def enviar_codigo_whatsapp_route(uid):
 
 # ---------------- WhatsApp: mensagens recebidas (webhook Evolution) ----------------
 
-WA_HELP = ("🤖 *Portaria virtual — Condomínio Elit's Park*\n\n"
-           "Comandos:\n"
-           "• *OCORRENCIA* <relato> — registra no livro de ocorrências\n"
+WA_TRIGGER = 'ELITSPARK'
+WA_MENU = ("🤖 *Portaria virtual — Elit's Park*\n\n"
+           "1️⃣ Registrar ocorrência\n"
+           "2️⃣ Votações abertas\n"
+           "3️⃣ Votar numa proposta\n"
+           "4️⃣ Ajuda\n"
+           "0️⃣ Sair")
+WA_HELP = ("📖 *Comandos diretos* (dentro da sessão):\n"
+           "• *OCORRENCIA* <relato> — grava no livro\n"
            "• *VOTACAO* — lista as votações abertas\n"
            "• *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*\n"
-           "• *AJUDA* — esta mensagem")
+           "• *SAIR* ou *0* — fecha o menu\n\n"
+           "Fora da sessão o bot não responde — /ELITSPARK reabre.")
 
 
 def _wa_reply(number, texto):
@@ -646,71 +657,126 @@ def _wa_reply(number, texto):
         pass
 
 
-def _wa_comando(conn, cmd, resto, uid, nome):
-    """Executa o comando do morador e devolve a resposta (ou None)."""
+def _wa_sess(conn, jid):
+    """Etapa da sessão aberta do remetente ('menu', 'aguarda_ocorrencia'),
+    ou None se não houver / se expirada (2h de inatividade)."""
+    row = conn.execute('SELECT etapa, aberta_em FROM wa_sessoes WHERE jid = ?',
+                       (jid,)).fetchone()
+    if not row:
+        return None
+    if conn.execute("SELECT datetime('now','localtime') > datetime(?, '+2 hours')",
+                    (row[1],)).fetchone()[0]:
+        conn.execute('DELETE FROM wa_sessoes WHERE jid = ?', (jid,))
+        conn.commit()
+        return None
+    return row[0]
+
+
+def _wa_set(conn, jid, etapa):
+    conn.execute(
+        """INSERT INTO wa_sessoes(jid, etapa, aberta_em)
+           VALUES (?, ?, datetime('now','localtime'))
+           ON CONFLICT(jid) DO UPDATE SET etapa = excluded.etapa,
+                                          aberta_em = excluded.aberta_em""",
+        (jid, etapa))
+    conn.commit()
+
+
+def _wa_nao_vinculado():
+    return ('⚠️ Seu número não está vinculado a uma unidade — '
+            'peça à administração para cadastrar seu telefone no perfil.\n\n'
+            '0 = sair')
+
+
+def _wa_votacoes(conn):
+    rows = conn.execute('SELECT id, titulo FROM propostas WHERE aberta = 1 '
+                        'ORDER BY id').fetchall()
+    if not rows:
+        return 'Nenhuma votação aberta no momento.\n\n0 = sair'
+    linhas = '\n'.join(f'*{i}* — {t}' for i, t in rows)
+    return (f'🗳️ *Votações abertas:*\n{linhas}\n\n'
+            f'Vote com *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*.\n0 = sair')
+
+
+def _wa_votar(conn, resto, uid):
+    if not uid:
+        return _wa_nao_vinculado()
+    m = resto.split()
+    pid = int(m[0]) if m and m[0].isdigit() else 0
+    op = m[1].upper() if len(m) > 1 else ''
+    voto = 'favor' if op.startswith('F') else 'contra' if op.startswith('C') else ''
+    if not pid or not voto:
+        return ('Formato: *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*. '
+                'Veja os números na opção 2.\n\n0 = sair')
+    u = conn.execute('SELECT em_atraso FROM unidades WHERE unidade = ?',
+                     (uid,)).fetchone()
+    if u and u[0]:
+        return '🚫 Unidade em atraso — regularize com a administração para votar.\n\n0 = sair'
+    p = conn.execute('SELECT titulo, aberta FROM propostas WHERE id = ?',
+                     (pid,)).fetchone()
+    if not p:
+        return 'Proposta não encontrada — veja as abertas na opção 2.\n\n0 = sair'
+    if not p[1]:
+        return f'A votação *{p[0]}* já está encerrada.\n\n0 = sair'
+    conn.execute(
+        """INSERT INTO votos(proposta_id, unidade, voto) VALUES (?,?,?)
+           ON CONFLICT(proposta_id, unidade) DO UPDATE SET voto = excluded.voto""",
+        (pid, uid, voto))
+    conn.commit()
+    f, c = conn.execute(
+        "SELECT SUM(voto='favor'), SUM(voto='contra') FROM votos "
+        'WHERE proposta_id = ?', (pid,)).fetchone()
+    return (f'✅ Voto *{"a favor" if voto == "favor" else "contra"}* '
+            f'de {uid} registrado na proposta *{p[0]}*.\n'
+            f'Placar: {f or 0}× favor · {c or 0}× contra.\n\n0 = sair')
+
+
+def _wa_ocorrencia(conn, texto, uid, nome):
+    if not uid:
+        return _wa_nao_vinculado()
+    conn.execute('INSERT INTO ocorrencias(unidade, nome, categoria, texto) '
+                 'VALUES (?,?,?,?)', (uid, nome or None, 'whatsapp', texto[:1000]))
+    conn.commit()
+    return (f'✅ Ocorrência registrada no livro ({uid}) — '
+            f'a administração acompanha pelo painel.\n\n{WA_MENU}')
+
+
+def _wa_menu(conn, t, uid, nome, reply_to):
+    """Entrada dentro de uma sessão aberta: número do menu ou comando direto."""
+    cmd, _, resto = t.partition(' ')
+    cmd = cmd.upper().strip('.,!;:*')
+    resto = resto.strip()
+    if t in ('1', '1️⃣') or cmd in ('OCORRENCIA', 'OCORRÊNCIA', 'RECLAMACAO',
+                                  'RECLAMAÇÃO') and not resto:
+        if not uid:
+            return _wa_nao_vinculado()
+        _wa_set(conn, reply_to, 'aguarda_ocorrencia')
+        return ('✍️ Envie agora o relato da ocorrência (texto livre).\n'
+                'SAIR = cancelar e fechar o menu.')
     if cmd in ('OCORRENCIA', 'OCORRÊNCIA', 'RECLAMACAO', 'RECLAMAÇÃO'):
-        if not uid:
-            return ('⚠️ Seu número não está vinculado a uma unidade — '
-                    'peça à administração para cadastrar seu telefone no perfil.')
-        if not resto:
-            return ('Envie *OCORRENCIA* seguido do relato.\n'
-                    'Ex.: OCORRENCIA vazamento na garagem G2')
-        conn.execute('INSERT INTO ocorrencias(unidade, nome, categoria, texto) '
-                     'VALUES (?,?,?,?)', (uid, nome or None, 'whatsapp', resto[:1000]))
-        conn.commit()
-        return (f'✅ Ocorrência registrada no livro ({uid}) — '
-                f'a administração acompanha pelo painel.')
-    if cmd in ('VOTACAO', 'VOTAÇÃO', 'VOTACOES', 'VOTAÇÕES', 'PAUTA', 'PROPOSTAS'):
-        rows = conn.execute('SELECT id, titulo FROM propostas WHERE aberta = 1 '
-                            'ORDER BY id').fetchall()
-        if not rows:
-            return 'Nenhuma votação aberta no momento.'
-        linhas = '\n'.join(f'*{i}* — {t}' for i, t in rows)
-        return (f'🗳️ *Votações abertas:*\n{linhas}\n\n'
-                f'Responda *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*.')
+        return _wa_ocorrencia(conn, resto, uid, nome)
+    if t in ('2', '2️⃣') or cmd in ('VOTACAO', 'VOTAÇÃO', 'VOTACOES',
+                                   'VOTAÇÕES', 'PAUTA', 'PROPOSTAS'):
+        return _wa_votacoes(conn)
+    if t in ('3', '3️⃣') or cmd == 'VOTAR' and not resto:
+        return ('Para votar, responda neste formato:\n'
+                '*VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*\n'
+                '(os números aparecem na opção 2)\n\n0 = sair')
     if cmd == 'VOTAR':
-        if not uid:
-            return ('⚠️ Seu número não está vinculado a uma unidade — '
-                    'peça à administração para cadastrar seu telefone no perfil.')
-        m = resto.split()
-        pid = int(m[0]) if m and m[0].isdigit() else 0
-        op = m[1].upper() if len(m) > 1 else ''
-        voto = 'favor' if op.startswith('F') else 'contra' if op.startswith('C') else ''
-        if not pid or not voto:
-            return ('Formato: *VOTAR <n> FAVOR* ou *VOTAR <n> CONTRA*. '
-                    'Veja os números com *VOTACAO*.')
-        u = conn.execute('SELECT em_atraso FROM unidades WHERE unidade = ?',
-                         (uid,)).fetchone()
-        if u and u[0]:
-            return '🚫 Unidade em atraso — regularize com a administração para votar.'
-        p = conn.execute('SELECT titulo, aberta FROM propostas WHERE id = ?',
-                         (pid,)).fetchone()
-        if not p:
-            return 'Proposta não encontrada — veja as abertas com *VOTACAO*.'
-        if not p[1]:
-            return f'A votação *{p[0]}* já está encerrada.'
-        conn.execute(
-            """INSERT INTO votos(proposta_id, unidade, voto) VALUES (?,?,?)
-               ON CONFLICT(proposta_id, unidade) DO UPDATE SET voto = excluded.voto""",
-            (pid, uid, voto))
-        conn.commit()
-        f, c = conn.execute(
-            "SELECT SUM(voto='favor'), SUM(voto='contra') FROM votos "
-            'WHERE proposta_id = ?', (pid,)).fetchone()
-        return (f'✅ Voto *{"a favor" if voto == "favor" else "contra"}* '
-                f'de {uid} registrado na proposta *{p[0]}*.\n'
-                f'Placar: {f or 0}× favor · {c or 0}× contra.')
-    if cmd in ('AJUDA', 'MENU', 'OI', 'OLA', 'OLÁ', 'BOM', 'BOA',
-               'INICIO', 'INÍCIO', 'START'):
-        return WA_HELP
-    return 'Comando não reconhecido. Responda *AJUDA* para ver os comandos.'
+        return _wa_votar(conn, resto, uid)
+    if t in ('4', '4️⃣') or cmd in ('AJUDA', 'HELP', '?'):
+        return WA_HELP + '\n\n' + WA_MENU
+    if cmd in ('MENU', 'INICIO', 'INÍCIO'):
+        return WA_MENU
+    return ('Não entendi — digite o *número* da opção ou *SAIR*.\n\n' + WA_MENU)
 
 
 @app.post('/webhook/whatsapp')
 def webhook_whatsapp():
     """Endpoint do webhook da Evolution API (evento MESSAGES_UPSERT).
-    Auth: header apikey = EVO_KEY (ou ?key=). Mensagens de texto viram
-    comandos da portaria virtual — ver _wa_comando."""
+    Auth: header apikey = EVO_KEY (ou ?key=). O bot só responde dentro de
+    uma sessão: /ELITSPARK abre, SAIR/0 fecha, 2h de inatividade expira.
+    Fora da sessão, mensagens são ignoradas em silêncio."""
     if not evo_ok():
         return {'ok': False}, 404
     if (request.headers.get('apikey') != EVO['KEY']
@@ -740,12 +806,29 @@ def webhook_whatsapp():
                        (digits,)).fetchone() if digits else None
     uid = row[0] if row else None
     nome = (data.get('pushName') or '').strip()
-    parts = texto.split(None, 1)
-    cmd = parts[0].upper().strip('.,!;:*')
-    resto = parts[1].strip() if len(parts) > 1 else ''
     reply_to = digits or jid
+    t = texto.strip()
+    resposta = None
     try:
-        resposta = _wa_comando(conn, cmd, resto, uid, nome)
+        if t.lstrip('/').upper().strip('.,!;:*') == WA_TRIGGER:
+            _wa_set(conn, reply_to, 'menu')
+            resposta = (f'Olá{f" {nome}" if nome else ""}!'
+                        f'{f" Unidade {uid}." if uid else ""}\n\n' + WA_MENU)
+        else:
+            sess = _wa_sess(conn, reply_to)
+            if not sess:
+                pass  # fora de sessão → silêncio total
+            elif t.upper().strip('.,!;:*') in ('SAIR', 'EXIT', '0', '0️⃣'):
+                conn.execute('DELETE FROM wa_sessoes WHERE jid = ?', (reply_to,))
+                conn.commit()
+                resposta = ('✋ Menu fechado — suas mensagens voltam ao normal. '
+                            'Para reabrir: /ELITSPARK')
+            elif sess == 'aguarda_ocorrencia':
+                resposta = (_wa_ocorrencia(conn, t, uid, nome)
+                            if uid else _wa_nao_vinculado())
+                _wa_set(conn, reply_to, 'menu')
+            else:
+                resposta = _wa_menu(conn, t, uid, nome, reply_to)
     except Exception:
         resposta = None
     if resposta:

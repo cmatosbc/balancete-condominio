@@ -80,12 +80,20 @@ build (não é mais CSS escrito à mão).
   {EVO}/webhook/set/{instance}` com `url=http://site:8000/…` e
   `headers.apikey=EVO_KEY` — o endpoint valida esse header ou
   `?key=`). Telefone do remetente → unidade via `unidades.telefone`
-  (JID `@lid` resolve por `senderPn`). Comandos em `_wa_comando`:
-  `OCORRENCIA <texto>` (grava no livro, categoria `whatsapp`),
-  `VOTACAO` (lista abertas), `VOTAR <n> FAVOR|CONTRA` (mesmas regras
-  do site: unidade válida, não em atraso, proposta aberta, upsert),
-  `AJUDA`; respostas por `_wa_reply` (best-effort, nunca derruba o
-  webhook). Ignora fromMe/grupos/broadcast/não-texto.
+  (JID `@lid` resolve por `senderPn`). O bot é **gated por sessão**
+  (tabela `wa_sessoes`: jid → etapa + timestamp, expira após 2h de
+  inatividade): fora da sessão toda mensagem é ignorada em silêncio —
+  `/ELITSPARK` abre e mostra o `WA_MENU`, `SAIR`/`0` fecha. Opções:
+  `1` entra na etapa `aguarda_ocorrencia` (próximo texto livre vira a
+  ocorrência, categoria `whatsapp`) e retorna ao menu; `2` lista
+  votações abertas; `3` explica o voto; `4` ajuda (`WA_HELP`).
+  Comandos diretos também valem dentro da sessão: `OCORRENCIA <t>`
+  (com `<t>` registra na hora; sozinho pede o relato), `VOTACAO`,
+  `VOTAR <n> FAVOR|CONTRA` (mesmas regras do site: unidade válida,
+  não em atraso, proposta aberta, upsert). Dispatch em `_wa_menu` +
+  `_wa_ocorrencia`/`_wa_votacoes`/`_wa_votar`; respostas por
+  `_wa_reply` (best-effort, nunca derruba o webhook). Ignora
+  fromMe/grupos/broadcast/não-texto.
   Livro de ocorrências: `/ocorrencia` (todos registram) → tabela
   `ocorrencias` → listadas no `/admin`; admin alterna `resolvida` via
   `POST /admin/ocorrencia/<id>/resolver`.

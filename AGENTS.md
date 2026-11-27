@@ -152,6 +152,34 @@ O estágio Node do Dockerfile repete exatamente esse passo — então
 `docker compose build` basta para produção; o comando acima serve para
 iterar local sem rebuildar a imagem.
 
+## Deploy automatizado
+
+`.github/workflows/deploy.yml`: push na `main` → SSH na VM (secrets
+`DEPLOY_HOST`/`DEPLOY_USER`/`DEPLOY_SSH_KEY`/`DEPLOY_DIR`) →
+`git pull && docker compose --profile whatsapp up -d --build`.
+Mudanças só em `pdfs/`/`dados.js`/docs NÃO re-deployam (paths-ignore).
+
+Setup da VM (Oracle Always Free — Ampere A1 ARM64, Ubuntu):
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker $USER && newgrp docker
+git clone https://github.com/cmatosbc/balancete-condominio ~/condominio
+cd ~/condominio && cp .env.example .env 2>/dev/null; nano .env   # segredos
+# opcional: copiar data/balancetes.db para preservar senhas/contatos/votos
+docker compose --profile whatsapp up -d --build
+```
+
+Liberação de rede na Oracle (Security List da VCN + firewall da VM):
+80/443 (HTTP/HTTPS via Caddy ou o próprio site). A porta 8081 da
+Evolution fica bind em 127.0.0.1 — manager só via SSH tunnel
+(`ssh -L 8081:localhost:8081 user@vm`). WhatsApp webhook é interno
+(`http://site:8000/…`), não precisa de exposição.
+
+Atenção ARM64: todas as imagens usadas são multi-arch
+(evolution-api, postgres, redis, python, node) — compose roda
+sem alteração.
+
 ## Atualização mensal
 
 Local:

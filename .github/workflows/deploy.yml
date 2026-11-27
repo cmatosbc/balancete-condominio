@@ -1,0 +1,34 @@
+name: Deploy para o servidor
+
+# Push na main → SSH na VM → git pull + rebuild dos containers.
+# Requer os secrets do repositório (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST — IP ou hostname da VM
+#   DEPLOY_USER — usuário SSH (Oracle/Ubuntu: "ubuntu"; Oracle Linux: "opc")
+#   DEPLOY_SSH_KEY — chave privada SSH do usuário (a pública vai no authorized_keys da VM)
+#   DEPLOY_DIR   — opcional, caminho do clone (padrão: ~/condominio)
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'pdfs/**'        # balancetes novos não re-deployam (só mudam dados.js)
+      - 'dados.js'
+      - 'AGENTS.md'
+      - 'README.md'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH → pull + rebuild
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_DIR || '~/condominio' }}
+            git pull --ff-only
+            docker compose --profile whatsapp up -d --build
+            docker compose ps
